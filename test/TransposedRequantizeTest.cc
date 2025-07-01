@@ -48,9 +48,9 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(qGranularityVals))); // requantization granularity
 
 TEST_P(RequantizeTest, reqTest) {
-  int rows, cols;
-  bool fuse_relu;
-  bool use_bias;
+  int rows = 0, cols = 0;
+  bool fuse_relu = false;
+  bool use_bias = false;
   QuantizationGranularity q_gran;
   tie(rows, cols, fuse_relu, use_bias, q_gran) = GetParam();
 

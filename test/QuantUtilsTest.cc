@@ -6,6 +6,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+#include <cmath>
+
 #include <algorithm>
 #include <climits>
 #include <limits>
@@ -90,7 +92,7 @@ void ref_impl(
     for (int g = 0; g < G; ++g) {
       for (int c = 0; c < C / G; ++c) {
         for (int x = 0; x < X; ++x) {
-          float num;
+          float num = NAN;
           if (LT == layout_t::KCX) {
             num = src[(i * C + g * C_per_G + c) * X + x];
           } else {
@@ -179,8 +181,8 @@ template <typename T>
         }
       }
       // compare scale/bias
-      float scaleTest, scaleRef, biasTest, biasRef;
-      if (is_same<T, float16>::value) {
+      float scaleTest = NAN, scaleRef = NAN, biasTest = NAN, biasRef = NAN;
+      if (is_same_v<T, float16>) {
         // half scale and bias
         scaleTest = cpu_half2float(reinterpret_cast<const float16*>(
             res.data() + i * ld + out_emb_cols)[0]);
@@ -228,7 +230,7 @@ template <typename T>
  * Test for QuantizeGroupwise
  */
 TEST_P(QuantizeGroupwiseTest, quantizeGTest) {
-  int K, C, X, G;
+  int K = 0, C = 0, X = 0, G = 0;
   layout_t layout;
   tie(K, C, X, G, layout) = GetParam();
 
@@ -320,7 +322,7 @@ void runQuantizeTests(
  * Test for QuantizeGroupwise
  */
 TEST_P(QuantizeTest, quantizeTest) {
-  int len;
+  int len = 0;
   len = GetParam();
 
   random_device rd;
@@ -449,7 +451,7 @@ void runFusedQuantizeDequantizeTests(
 }
 
 TEST_P(FusedQuantizeDequantizeTest, fusedQuantizeDequantizeTest) {
-  int len;
+  int len = 0;
   len = GetParam();
 
   random_device rd;
@@ -651,7 +653,7 @@ TEST_P(EmbeddingQuantizeFixedNumberTest, embeddingFloatToQuantizedSBHalfTest) {
 
 // Scale and bias are of type float16
 TEST_P(EmbeddingQuantizeTest, embeddingHalfTest) {
-  int bit_rate, rows, cols;
+  int bit_rate = 0, rows = 0, cols = 0;
   tie(bit_rate, rows, cols) = GetParam();
 
   random_device rd;
@@ -730,7 +732,7 @@ TEST_P(EmbeddingQuantizeTest, embeddingHalfTest) {
 
 // Scale and bias are of type float
 TEST_P(EmbeddingQuantizeSBFloatTest, embeddingFloatTest) {
-  int rows, cols;
+  int rows = 0, cols = 0;
   tie(rows, cols) = GetParam();
 
   random_device rd;

@@ -6,7 +6,6 @@
 InheritParentConfig: true
 Checks: '
 -*,
-cppcoreguidelines-init-variables,
 bugprone-argument-comment,
 modernize*,
 -modernize-use-auto,
@@ -16,6 +15,7 @@ modernize*,
 -modernize-avoid-bind,
 -modernize-use-designated-initializers,
 -modernize-use-ranges,
+-modernize-use-integer-sign-comparison
 '
 CheckOptions:
  - key: facebook-cuda-safe-api-call-check.HandlerName

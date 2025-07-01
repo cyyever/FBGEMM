@@ -88,26 +88,19 @@ struct BenchmarkSpec {
 };
 
 struct BenchmarkResult {
-  float ref_bw;
-  float ref_eff_bw;
-  float ref_time;
-  float asmjit_bw;
-  float asmjit_eff_bw;
-  float asmjit_time;
-  float autovec_bw;
-  float autovec_eff_bw;
-  float autovec_time;
+  float ref_bw{0.0};
+  float ref_eff_bw{0.0};
+  float ref_time{0.0};
+  float asmjit_bw{0.0};
+  float asmjit_eff_bw{0.0};
+  float asmjit_time{0.0};
+  float autovec_bw{0.0};
+  float autovec_eff_bw{0.0};
+  float autovec_time{0.0};
 
   BenchmarkResult()
-      : ref_bw(0.0),
-        ref_eff_bw(0.0),
-        ref_time(0.0),
-        asmjit_bw(0.0),
-        asmjit_eff_bw(0.0),
-        asmjit_time(0.0),
-        autovec_bw(0.0),
-        autovec_eff_bw(0.0),
-        autovec_time(0.0) {}
+      
+        {}
 
   void set_ref_result(float bw, float eff_bw, float time) {
     ref_bw = bw;

@@ -470,8 +470,8 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(1, 2))); // oc_per_g
 
 TEST_P(FBGemmDirectConvTransTest, Test2D) {
-  bool a_symmetric, b_symmetric;
-  int oc_per_g;
+  bool a_symmetric = false, b_symmetric = false;
+  int oc_per_g = 0;
   tie(a_symmetric, b_symmetric, oc_per_g) = GetParam();
 
   for (auto conv_p : shapes_trans) {
@@ -665,8 +665,8 @@ INSTANTIATE_TEST_CASE_P(
 
 
 TEST_P(FBGemmDirectConvTransFbgemmTest, Test2D) {
-  bool a_symmetric, b_symmetric;
-  int oc_per_g;
+  bool a_symmetric = false, b_symmetric = false;
+  int oc_per_g = 0;
   tie(a_symmetric, b_symmetric, oc_per_g) = GetParam();
 
   for (auto conv_p : shapes_trans) {
