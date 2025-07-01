@@ -402,8 +402,8 @@ DirectConvCodeGenBase<uint8_t, int8_t, int32_t, int32_t>::getOrCreateDirectConv(
 
     a->emitEpilog(frame);
 
-    jit_micro_kernel_fp fn;
-    asmjit::Error err;
+    jit_micro_kernel_fp fn = nullptr;
+    asmjit::Error err = 0;
     {
       std::unique_lock<std::mutex> lock(rtMutex_);
       err = runtime().add(&fn, &code);
@@ -772,8 +772,8 @@ DirectConvCodeGenBase<uint8_t, int8_t, int32_t, int32_t>::
 
     a->emitEpilog(frame);
 
-    jit_micro_kernel_fp_convT fn;
-    asmjit::Error err;
+    jit_micro_kernel_fp_convT fn = nullptr;
+    asmjit::Error err = 0;
     {
       std::unique_lock<std::mutex> lock(rtMutex_);
       err = runtime().add(&fn, &code);

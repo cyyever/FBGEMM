@@ -210,6 +210,8 @@ else(MSVC)
   string(APPEND CMAKE_CXX_FLAGS " -Wno-strict-aliasing")
   if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 17.0.0)
     string(APPEND CMAKE_CXX_FLAGS " -Wno-vla-cxx-extension")
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    string(APPEND CMAKE_CXX_FLAGS " -Wmaybe-uninitialized")
   endif()
   target_compile_options(fbgemm_avx2 PRIVATE
     "-m64" "-mavx2" "-mf16c" "-mfma")

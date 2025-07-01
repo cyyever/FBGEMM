@@ -27,6 +27,7 @@
 #endif
 
 #ifdef _OPENMP
+#include <math.h>
 #include <omp.h>
 #endif
 
@@ -256,7 +257,7 @@ void performance_test(
 #endif
 
   std::string type;
-  double gflops, gbs, ttot;
+  double gflops = NAN, gbs = NAN, ttot = NAN;
   for (auto s : shapes) {
     int m = s[0];
     int n = s[1];

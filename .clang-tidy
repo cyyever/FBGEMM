@@ -5,6 +5,7 @@
 # but override them if there's a conflict.
 InheritParentConfig: true
 Checks: '
+cppcoreguidelines-init-variables,
 bugprone-argument-comment,
 '
 CheckOptions:

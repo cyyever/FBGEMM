@@ -77,7 +77,7 @@ static void transpose_kernel_mxn_sse(
   // load from src to registers
   __m128i mask_v = _mm_load_si128(reinterpret_cast<const __m128i*>(masks[N]));
   __m128 input[4];
-  unsigned i;
+  unsigned i = 0;
   for (i = 0; i < M; ++i) {
     input[i] = _mm_maskload_ps(&src[i * ld_src], mask_v);
   }
@@ -212,7 +212,7 @@ static void transpose_kernel_mxn_avx2(
   __m256i mask_v = _mm256_load_si256(
       reinterpret_cast<const __m256i*>(internal::avx2_ps_or_epi32_masks[N]));
   __m256 input[8];
-  unsigned i;
+  unsigned i = 0;
   for (i = 0; i < M; ++i) {
     input[i] = _mm256_maskload_ps(&src[i * ld_src], mask_v);
   }
@@ -730,7 +730,7 @@ static void transpose_kernel_mxn_avx2_uint8(
       internal::avx2_ps_or_epi32_masks[N / 4]));
 
   __m256i input[8];
-  unsigned i, j;
+  unsigned i = 0, j = 0;
   for (i = 0; i < M; ++i) {
     uint8_t local_buffer[32] = {0};
 
@@ -785,7 +785,7 @@ static void transpose_kernel_mxn_avx2_uint8(
   // 64-127 bit: a1 -- h1,
   // 128-191 bit:  a16 -- h16,
   // 192-255 bit:   a17 -- h17
-  uint64_t t;
+  uint64_t t = 0;
   mask_v = _mm256_load_si256(reinterpret_cast<const __m256i*>(
       internal::avx2_ps_or_epi32_masks[M / 4]));
   for (i = 0; i < N; ++i) {

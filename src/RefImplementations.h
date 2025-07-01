@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <math.h>
+
 #include <algorithm>
 #include <cstdint>
 
@@ -417,7 +419,7 @@ FBGEMM_API void compressed_indices_remap_ref(
 
 template <typename T>
 float convert_to_float_ref(T src, bool is_bf16 = false) {
-  float f_value;
+  float f_value = NAN;
   if constexpr (std::is_same<T, uint16_t>::value) {
     f_value = is_bf16 ? cpu_bf162float(src) : cpu_half2float(src);
   } else {

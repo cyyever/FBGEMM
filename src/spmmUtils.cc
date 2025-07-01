@@ -61,7 +61,7 @@ FBGEMM_API void trRequantizeRef(
       if (r.act_zero_point) {
         raw -= r.act_zero_point * r.weight_row_offsets[i];
       }
-      int weight_zeropoint_idx;
+      int weight_zeropoint_idx = 0;
       if (Q_GRAN == QuantizationGranularity::TENSOR) {
         weight_zeropoint_idx = 0;
       } else {

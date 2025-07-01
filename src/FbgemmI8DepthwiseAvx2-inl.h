@@ -17,6 +17,7 @@
 #if defined(__x86_64__) || defined(__i386__) || \
     (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)))
 #include <immintrin.h>
+#include <math.h>
 #endif
 
 namespace fbgemm {
@@ -502,7 +503,7 @@ static ALWAYS_INLINE void requantize_(
     if (!A_SYMMETRIC) {
       raw -= A_zero_point * col_offsets[j];
     }
-    float raw_f;
+    float raw_f = NAN;
     if (HAS_BIAS) { // static if
       if constexpr (std::is_same<BIAS_TYPE, float>::value) {
         raw_f = raw;
