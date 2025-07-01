@@ -15,15 +15,14 @@
 #include "fbgemm/FbgemmBuild.h"
 #include "fbgemm/FloatConversion.h"
 
-#include <math.h>
+#include <cmath>
 
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
 #include <cstring>
-#include <numeric>
-#include <thread>
+#include <memory>
 
 /// @defgroup tbe-cpu-autovec TBE CPU Autovectorization (FP8/16/32)
 
@@ -1209,7 +1208,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       } else {                                                            \
         weights = nullptr;                                                \
       }                                                                   \
-      if (std::is_same<InType, uint8_t>::value) {                         \
+      if constexpr (std::is_same_v<InType, uint8_t>) {                    \
         assert(!specialize(IS_BF16_IN, is_bf16_in));                      \
         return EmbeddingSpMDM8Bit_autovec(                                \
             specialize(BLOCK_SIZE, block_size),                           \
