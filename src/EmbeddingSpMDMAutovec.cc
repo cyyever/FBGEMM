@@ -55,7 +55,7 @@ static inline void fill_output(
     const float* src,
     const int64_t block_size,
     const bool is_bf16_out) {
-  if (std::is_same_v<OutType, float>) {
+  if constexpr (std::is_same_v<OutType, float>) {
     for (int j = 0; j < block_size; ++j) {
       out[j] = src[j];
     }
