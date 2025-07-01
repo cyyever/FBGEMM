@@ -138,7 +138,7 @@ uint32_t Xor128() {
   /* library-local */ static uint32_t y = 362436069;
   /* library-local */ static uint32_t z = 521288629;
   /* library-local */ static uint32_t w = 88675123;
-  uint32_t t;
+  uint32_t t = 0;
   t = x ^ (x << 11);
   x = y;
   y = z;
@@ -180,7 +180,7 @@ void NO_SANITIZE("address") FusedQuantizeDequantizeAvx2(
   constexpr int32_t int32_float_max_val =
       std::numeric_limits<int32_t>::max() - 127;
   int64_t i = 0;
-  uint32_t rand;
+  uint32_t rand = 0;
   __m256 inverse_scale_v = _mm256_set1_ps(inverse_scale);
   __m256 scale_v = _mm256_set1_ps(qparams.scale);
   __m256 zp_v = _mm256_set1_ps(qparams.zero_point);
@@ -1582,7 +1582,7 @@ void FloatOrHalfToFusedNBitRowwiseQuantizedSBHalfAvx2(
       (input_columns + NUM_ELEM_PER_BYTE - 1) / NUM_ELEM_PER_BYTE +
       2 * sizeof(std::uint16_t);
 
-  float* input_row_float_for_fp16;
+  float* input_row_float_for_fp16 = nullptr;
   if (std::is_same<InputType, float16>()) {
     input_row_float_for_fp16 = static_cast<float*>(
         fbgemmAlignedAlloc(64, input_columns * sizeof(float)));
@@ -1590,7 +1590,7 @@ void FloatOrHalfToFusedNBitRowwiseQuantizedSBHalfAvx2(
 
   for (size_t row = 0; row < input_rows; ++row) {
     const InputType* input_row = input + row * input_columns;
-    const float* input_row_float;
+    const float* input_row_float = nullptr;
     if (std::is_same<InputType, float>()) {
       // NOTE: this reinterpret_cast is only to workaround c++
       // type requirements -- it is not for fp16 case and `input_row` HAS to be
@@ -1610,7 +1610,7 @@ void FloatOrHalfToFusedNBitRowwiseQuantizedSBHalfAvx2(
     __m256 min_v = _mm256_set1_ps(minimum_element);
     __m256 max_v = _mm256_set1_ps(maximum_element);
 
-    int col;
+    int col = 0;
     for (col = 0; col < input_columns / VLEN * VLEN; col += VLEN) {
       __m256 in_v;
       if (std::is_same<InputType, float>()) {
@@ -1785,14 +1785,14 @@ void FloatOrHalfToFused8BitRowwiseQuantizedSBFloatAvx2(
       _mm256_set_epi32(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00);
 
   const int64_t output_columns = input_columns + 2 * sizeof(float);
-  float* input_row_float_for_fp16;
+  float* input_row_float_for_fp16 = nullptr;
   if (std::is_same<InputType, float16>()) {
     input_row_float_for_fp16 = static_cast<float*>(
         fbgemmAlignedAlloc(64, input_columns * sizeof(float)));
   }
   for (size_t row = 0; row < input_rows; ++row) {
     const InputType* input_row = input + row * input_columns;
-    const float* input_row_float;
+    const float* input_row_float = nullptr;
     if (std::is_same<InputType, float>()) {
       // NOTE: this reinterpret_cast is only to workaround c++
       // type requirements -- it is not for fp16 case and `input_row` HAS to be
@@ -1809,7 +1809,7 @@ void FloatOrHalfToFused8BitRowwiseQuantizedSBFloatAvx2(
     float maximum_element = -FLT_MAX;
     __m256 min_v = _mm256_set1_ps(minimum_element);
     __m256 max_v = _mm256_set1_ps(maximum_element);
-    int col;
+    int col = 0;
     for (col = 0; col < input_columns / VLEN * VLEN; col += VLEN) {
       __m256 in_v;
       if (std::is_same<InputType, float>()) {
@@ -1920,7 +1920,7 @@ void FusedNBitRowwiseQuantizedSBHalfToFloatOrHalfAvx2(
   // multiply by 4 because we're handling 4 vlen per iteration
   constexpr int NUM_OF_32BIT_PER_VLOAD = VLEN * 4 / NUM_ELEM_PER_32BIT;
 
-  int remainder_32bit_granularity, remainder;
+  int remainder_32bit_granularity = 0, remainder = 0;
   __m128i vmask_load;
   __m256i vmask_store0, vmask_store1, vmask_store2, vmask_store3;
   if (BIT_RATE == 4 || BIT_RATE == 2) {
@@ -1979,7 +1979,7 @@ void FusedNBitRowwiseQuantizedSBHalfToFloatOrHalfAvx2(
     float scale = halfToFloat(input_row_scale_bias[0]);
     float bias = halfToFloat(input_row_scale_bias[1]);
     OutputType* output_row = output + row * output_columns;
-    float* output_row_float;
+    float* output_row_float = nullptr;
     if (std::is_same<OutputType, float>()) {
       // NOTE: this reinterpret_cast is only to workaround c++
       // type requirements -- it is not for fp16 case and `output_row` HAS to be
@@ -2152,7 +2152,7 @@ void Fused8BitRowwiseQuantizedSBFloatToFloatOrHalfAvx2(
     __m256 scale_v = _mm256_set1_ps(input_row_scale_bias[0]);
     __m256 bias_v = _mm256_set1_ps(input_row_scale_bias[1]);
 
-    int col;
+    int col = 0;
     for (col = 0; col < output_columns / VLEN * VLEN; col += VLEN) {
       __m256 in_v = _mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(
           _mm_loadl_epi64(reinterpret_cast<const __m128i*>(input_row + col))));
