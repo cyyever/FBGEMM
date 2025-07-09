@@ -952,13 +952,17 @@ static void dispatchOutputProcessing(
   }
 
   if (cpuinfo_initialize()) {
+#ifndef __aarch64__
     if (fbgemmHasAvx512Support() || fbgemmHasAvx512VnniSupport()) {
       REQUANTIZE_C_PER_G(Avx512);
-    } else if (fbgemmHasAvx2Support() || fbgemmHasArmNeonSupport()) {
-      REQUANTIZE_C_PER_G(Avx2);
-    } else {
-      assert(0 && "unsupported architecture");
+      return;
     }
+#endif
+    if (fbgemmHasAvx2Support() || fbgemmHasArmNeonSupport()) {
+      REQUANTIZE_C_PER_G(Avx2);
+      return;
+    }
+    assert(0 && "unsupported architecture");
   } else {
     throw runtime_error("Failed to initialize cpuinfo!");
   }
