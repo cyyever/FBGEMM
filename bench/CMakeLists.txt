@@ -45,11 +45,13 @@ macro(add_benchmark BENCHNAME)
     ../test/EmbeddingSpMDMTestUtils.cc
   )
 
-  target_compile_options(
-    ${BENCHNAME}
-    PRIVATE
-    "-m64" "-mavx2" "-mfma" "-masm=intel"
-  )
+  if(COMPILER_SUPPORTS_AVX2)
+    target_compile_options(
+      ${BENCHNAME}
+      PRIVATE
+      "-m64" "-mavx2" "-mfma" "-masm=intel"
+    )
+  endif()
 
   target_link_libraries(${BENCHNAME} fbgemm)
   add_dependencies(${BENCHNAME} fbgemm)

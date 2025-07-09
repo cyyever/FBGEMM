@@ -56,14 +56,19 @@ macro(add_gtest TESTNAME)
   # For static build, defining FBGEMM_STATIC to avoid generating
   # functions with _dllimport attributes.
   if(MSVC)
+    if(COMPILER_SUPPORTS_AVX2)
+      target_compile_options(${TESTNAME} PRIVATE "/arch:AVX2")
+    endif()
     target_compile_options(${TESTNAME} PRIVATE
-      "/arch:AVX2" "/wd4244" "/wd4267" "/wd4305" "/wd4309")
+      "/wd4244" "/wd4267" "/wd4305" "/wd4309")
     if (FBGEMM_LIBRARY_TYPE STREQUAL "static")
       target_compile_definitions(${TESTNAME} PRIVATE FBGEMM_STATIC)
     endif()
   else(MSVC)
-    target_compile_options(${TESTNAME} PRIVATE
-     "-m64" "-mavx2" "-mfma" "-masm=intel")
+    if(COMPILER_SUPPORTS_AVX2)
+      target_compile_options(${TESTNAME} PRIVATE
+       "-m64" "-mavx2" "-mfma" "-masm=intel")
+    endif()
   endif(MSVC)
   if (USE_SANITIZER)
     target_compile_options(${TESTNAME} PRIVATE
