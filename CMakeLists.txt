@@ -129,9 +129,6 @@ else(MSVC)
   CHECK_CXX_COMPILER_FLAG(-mavx512f COMPILER_SUPPORTS_AVX512)
   set(MSVC_BOOL False)
 endif(MSVC)
-if(NOT COMPILER_SUPPORTS_AVX512)
-  message(FATAL_ERROR "A compiler with AVX512 support is required.")
-endif()
 
 # Check if compiler supports __gnu_f2h_ieee
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindGnuH2fIeee.cmake)
@@ -158,24 +155,31 @@ get_filelist("get_fbgemm_generic_srcs(with_base=True)" FBGEMM_GENERIC_SRCS)
 get_filelist("get_fbgemm_avx2_srcs(msvc=${MSVC_BOOL})" FBGEMM_AVX2_SRCS)
 get_filelist("get_fbgemm_inline_avx2_srcs(msvc=${MSVC_BOOL})"
   FBGEMM_AVX2_INLINE_SRCS)
-get_filelist("get_fbgemm_avx512_srcs(msvc=${MSVC_BOOL})" FBGEMM_AVX512_SRCS)
-get_filelist("get_fbgemm_inline_avx512_srcs(msvc=${MSVC_BOOL})"
-  FBGEMM_AVX512_INLINE_SRCS)
+if(COMPILER_SUPPORTS_AVX512)
+  get_filelist("get_fbgemm_avx512_srcs(msvc=${MSVC_BOOL})" FBGEMM_AVX512_SRCS)
+  get_filelist("get_fbgemm_inline_avx512_srcs(msvc=${MSVC_BOOL})"
+    FBGEMM_AVX512_INLINE_SRCS)
+endif()
 get_filelist("get_fbgemm_autovec_srcs()" FBGEMM_AUTOVEC_SRCS)
 get_filelist("get_fbgemm_public_headers()" FBGEMM_PUBLIC_HEADERS)
 
 add_library(fbgemm_generic OBJECT ${FBGEMM_GENERIC_SRCS})
 add_library(fbgemm_avx2 OBJECT ${FBGEMM_AVX2_SRCS} ${FBGEMM_AVX2_INLINE_SRCS})
-add_library(fbgemm_avx512 OBJECT
-  ${FBGEMM_AVX512_SRCS} ${FBGEMM_AVX512_INLINE_SRCS})
+set(fbgemm_targets fbgemm_generic fbgemm_avx2 fbgemm_autovec)
+if(NOT COMPILER_SUPPORTS_AVX512)
+  message(WARNING "AVX512 support is not found.")
+else()
+  add_library(fbgemm_avx512 OBJECT
+    ${FBGEMM_AVX512_SRCS} ${FBGEMM_AVX512_INLINE_SRCS})
+  list(APPEND fbgemm_targets fbgemm_avx512)
+endif()
 add_library(fbgemm_autovec OBJECT ${FBGEMM_AUTOVEC_SRCS})
 
 # Make libraries depend on defs.bzl
 add_custom_target(defs.bzl DEPENDS defs.bzl)
-add_dependencies(fbgemm_generic defs.bzl)
-add_dependencies(fbgemm_avx2 defs.bzl)
-add_dependencies(fbgemm_avx512 defs.bzl)
-add_dependencies(fbgemm_autovec defs.bzl)
+foreach(target IN LISTS fbgemm_targets)
+  add_dependencies(${target} defs.bzl)
+endforeach()
 
 # On Windows:
 # 1)  Adding definition of ASMJIT_STATIC to avoid generating asmjit function
@@ -185,9 +189,9 @@ add_dependencies(fbgemm_autovec defs.bzl)
 if(MSVC)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4244 /wd4267 /wd4305 /wd4309")
   if(FBGEMM_LIBRARY_TYPE STREQUAL "static")
-    target_compile_definitions(fbgemm_generic PRIVATE ASMJIT_STATIC)
-    target_compile_definitions(fbgemm_avx2 PRIVATE ASMJIT_STATIC)
-    target_compile_definitions(fbgemm_avx512 PRIVATE ASMJIT_STATIC)
+    foreach(target IN LISTS fbgemm_targets)
+      target_compile_definitions(${target} PRIVATE ASMJIT_STATIC)
+    endforeach()
     foreach(flag_var
       CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
       CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
@@ -197,7 +201,9 @@ if(MSVC)
     endforeach(flag_var)
   endif()
   target_compile_options(fbgemm_avx2 PRIVATE "/arch:AVX2")
+  if(COMPILER_SUPPORTS_AVX512)
   target_compile_options(fbgemm_avx512 PRIVATE "/arch:AVX512")
+  endif()
   if(OpenMP_FOUND)
     target_compile_options(fbgemm_autovec PRIVATE "/openmp:experimental")
   endif()
@@ -217,9 +223,11 @@ else(MSVC)
   endif()
   target_compile_options(fbgemm_avx2 PRIVATE
     "-m64" "-mavx2" "-mf16c" "-mfma")
-  target_compile_options(fbgemm_avx512 PRIVATE
-    "-m64" "-mavx2" "-mfma" "-mavx512f" "-mavx512bw" "-mavx512dq"
-    "-mavx512vl")
+  if(COMPILER_SUPPORTS_AVX512)
+    target_compile_options(fbgemm_avx512 PRIVATE
+      "-m64" "-mavx2" "-mfma" "-mavx512f" "-mavx512bw" "-mavx512dq"
+      "-mavx512vl")
+  endif()
   set_source_files_properties(
     src/FbgemmFP16UKernelsAvx2.cc
     src/FbgemmFP16UKernelsAvx512.cc
@@ -238,12 +246,10 @@ else(MSVC)
 endif(MSVC)
 
 if(USE_SANITIZER)
-  target_compile_options(fbgemm_generic PRIVATE
-    "-fsanitize=${USE_SANITIZER}" "-fno-omit-frame-pointer")
-  target_compile_options(fbgemm_avx2 PRIVATE
-    "-fsanitize=${USE_SANITIZER}" "-fno-omit-frame-pointer")
-  target_compile_options(fbgemm_avx512 PRIVATE
-    "-fsanitize=${USE_SANITIZER}" "-fno-omit-frame-pointer")
+  foreach(target IN LISTS fbgemm_targets)
+    target_compile_options(${target} PRIVATE
+      "-fsanitize=${USE_SANITIZER}" "-fno-omit-frame-pointer")
+  endforeach()
 endif()
 
 message(STATUS "==========")
@@ -303,53 +309,49 @@ if(NOT TARGET cpuinfo)
   set_property(TARGET cpuinfo PROPERTY POSITION_INDEPENDENT_CODE ON)
 endif()
 
-target_include_directories(fbgemm_generic BEFORE
-      PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}>
-      PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}/include>
-      PRIVATE "${ASMJIT_SRC_DIR}/src"
-      PRIVATE "${CPUINFO_SOURCE_DIR}/include")
-
-target_include_directories(fbgemm_avx2 BEFORE
-      PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}>
-      PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}/include>
-      PRIVATE "${ASMJIT_SRC_DIR}/src"
-      PRIVATE "${CPUINFO_SOURCE_DIR}/include")
-
-target_include_directories(fbgemm_avx512 BEFORE
-      PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}>
-      PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}/include>
-      PRIVATE "${ASMJIT_SRC_DIR}/src"
-      PRIVATE "${CPUINFO_SOURCE_DIR}/include")
-
-target_include_directories(fbgemm_autovec BEFORE
-      PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}>
-      PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}/include>
-      PRIVATE "${ASMJIT_SRC_DIR}/src"
-      PRIVATE "${CPUINFO_SOURCE_DIR}/include")
+foreach(target IN LISTS fbgemm_targets)
+  target_include_directories(${target} BEFORE
+        PUBLIC $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}/include>
+        PRIVATE "${ASMJIT_SRC_DIR}/src"
+        "${CPUINFO_SOURCE_DIR}/include")
+endforeach()
 
 if((FBGEMM_LIBRARY_TYPE STREQUAL "default" AND BUILD_SHARED_LIB) OR FBGEMM_LIBRARY_TYPE STREQUAL "shared")
-  add_library(fbgemm SHARED
-    $<TARGET_OBJECTS:fbgemm_generic>
-    $<TARGET_OBJECTS:fbgemm_avx2>
-    $<TARGET_OBJECTS:fbgemm_avx512>
-    $<TARGET_OBJECTS:fbgemm_autovec>)
+  if(COMPILER_SUPPORTS_AVX512)
+    add_library(fbgemm SHARED
+      $<TARGET_OBJECTS:fbgemm_generic>
+      $<TARGET_OBJECTS:fbgemm_avx2>
+      $<TARGET_OBJECTS:fbgemm_avx512>
+      $<TARGET_OBJECTS:fbgemm_autovec>)
+  else()
+    add_library(fbgemm SHARED
+      $<TARGET_OBJECTS:fbgemm_generic>
+      $<TARGET_OBJECTS:fbgemm_avx2>
+      $<TARGET_OBJECTS:fbgemm_autovec>)
+  endif()
+  foreach(target IN LISTS fbgemm_targets)
+    set_property(TARGET ${target} PROPERTY POSITION_INDEPENDENT_CODE ON)
+  endforeach()
   set_property(TARGET fbgemm PROPERTY POSITION_INDEPENDENT_CODE ON)
-  set_property(TARGET fbgemm_generic PROPERTY POSITION_INDEPENDENT_CODE ON)
-  set_property(TARGET fbgemm_avx2 PROPERTY POSITION_INDEPENDENT_CODE ON)
-  set_property(TARGET fbgemm_avx512 PROPERTY POSITION_INDEPENDENT_CODE ON)
-  set_property(TARGET fbgemm_autovec PROPERTY POSITION_INDEPENDENT_CODE ON)
 elseif((FBGEMM_LIBRARY_TYPE STREQUAL "default" AND NOT BUILD_SHARED_LIB) OR FBGEMM_LIBRARY_TYPE STREQUAL "static")
-  add_library(fbgemm STATIC
-    $<TARGET_OBJECTS:fbgemm_generic>
-    $<TARGET_OBJECTS:fbgemm_avx2>
-    $<TARGET_OBJECTS:fbgemm_avx512>
-    $<TARGET_OBJECTS:fbgemm_autovec>)
   #MSVC need to define FBGEMM_STATIC for fbgemm_generic also to
   #avoid generating _dllimport functions.
-  target_compile_definitions(fbgemm_generic PRIVATE FBGEMM_STATIC)
-  target_compile_definitions(fbgemm_avx2 PRIVATE FBGEMM_STATIC)
-  target_compile_definitions(fbgemm_avx512 PRIVATE FBGEMM_STATIC)
-  target_compile_definitions(fbgemm_autovec PRIVATE FBGEMM_STATIC)
+  if(COMPILER_SUPPORTS_AVX512)
+    add_library(fbgemm STATIC
+      $<TARGET_OBJECTS:fbgemm_generic>
+      $<TARGET_OBJECTS:fbgemm_avx2>
+      $<TARGET_OBJECTS:fbgemm_avx512>
+      $<TARGET_OBJECTS:fbgemm_autovec>)
+  else()
+    add_library(fbgemm STATIC
+      $<TARGET_OBJECTS:fbgemm_generic>
+      $<TARGET_OBJECTS:fbgemm_avx2>
+      $<TARGET_OBJECTS:fbgemm_autovec>)
+  endif()
+  foreach(target IN LISTS fbgemm_targets)
+    target_compile_definitions(${target} PRIVATE FBGEMM_STATIC)
+  endforeach()
   target_compile_definitions(fbgemm PRIVATE FBGEMM_STATIC)
 else()
   message(FATAL_ERROR "Unsupported library type ${FBGEMM_LIBRARY_TYPE}")
@@ -427,6 +429,8 @@ if(FBGEMM_USE_IPO)
   check_ipo_supported()
   set_property(TARGET fbgemm_generic PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
   set_property(TARGET fbgemm_avx2 PROPERTY INTERPROCEDURAL_OPTIMIZATION FALSE)
-  set_property(TARGET fbgemm_avx512 PROPERTY INTERPROCEDURAL_OPTIMIZATION FALSE)
+  if(COMPILER_SUPPORTS_AVX512)
+    set_property(TARGET fbgemm_avx512 PROPERTY INTERPROCEDURAL_OPTIMIZATION FALSE)
+  endif()
   set_property(TARGET fbgemm_autovec PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
