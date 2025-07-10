@@ -19,10 +19,6 @@ if (NOT ${MKL_FOUND})
   find_package(BLAS)
 endif()
 
-if (USE_SANITIZER)
-    message(WARNING "USING SANITIZER IN TEST")
-endif()
-
 if (${OpenMP_FOUND})
   message(STATUS "OpenMP_LIBRARIES= ${OpenMP_CXX_LIBRARIES}")
 endif()

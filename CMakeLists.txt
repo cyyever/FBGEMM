@@ -237,15 +237,6 @@ else(MSVC)
 
 endif(MSVC)
 
-if(USE_SANITIZER)
-  target_compile_options(fbgemm_generic PRIVATE
-    "-fsanitize=${USE_SANITIZER}" "-fno-omit-frame-pointer")
-  target_compile_options(fbgemm_avx2 PRIVATE
-    "-fsanitize=${USE_SANITIZER}" "-fno-omit-frame-pointer")
-  target_compile_options(fbgemm_avx512 PRIVATE
-    "-fsanitize=${USE_SANITIZER}" "-fno-omit-frame-pointer")
-endif()
-
 message(STATUS "==========")
 message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG is ${CMAKE_CXX_FLAGS_DEBUG}")
@@ -398,6 +389,16 @@ if(MSVC)
   install(TARGETS fbgemm DESTINATION ${CMAKE_INSTALL_LIBDIR})
   install(TARGETS asmjit DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
+
+if(USE_SANITIZER)
+  find_package(Sanitizer REQUIRED)
+  if(USE_SANITIZER STREQUAL "address")
+    target_link_libraries(fbgemm PUBLIC Sanitizer::address)
+  elseif(USE_SANITIZER STREQUAL "undefined")
+    target_link_libraries(fbgemm PUBLIC Sanitizer::undefined)
+  endif()
+endif()
+
 
 #Make project importable from the build directory
 #export(TARGETS fbgemm asmjit FILE fbgemmLibraryConfig.cmake)

@@ -65,7 +65,7 @@ macro(add_gtest TESTNAME)
     target_compile_options(${TESTNAME} PRIVATE
      "-m64" "-mavx2" "-mfma" "-masm=intel")
   endif(MSVC)
-  if (USE_SANITIZER)
+  if(USE_SANITIZER)
     target_compile_options(${TESTNAME} PRIVATE
       "-fsanitize=${USE_SANITIZER}" "-fno-omit-frame-pointer")
     target_link_options(${TESTNAME} PRIVATE
