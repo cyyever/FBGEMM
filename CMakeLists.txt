@@ -189,21 +189,12 @@ add_dependencies(fbgemm_autovec defs.bzl)
 # On Windows:
 # 1)  Adding definition of ASMJIT_STATIC to avoid generating asmjit function
 #     calls with _dllimport attribute
-# 2)  MSVC uses /MD in default cxx compiling flags,
-# Need to change it to /MT in static case
 if(MSVC)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4244 /wd4267 /wd4305 /wd4309")
   if(FBGEMM_LIBRARY_TYPE STREQUAL "static")
     target_compile_definitions(fbgemm_generic PRIVATE ASMJIT_STATIC)
     target_compile_definitions(fbgemm_avx2 PRIVATE ASMJIT_STATIC)
     target_compile_definitions(fbgemm_avx512 PRIVATE ASMJIT_STATIC)
-    foreach(flag_var
-      CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-      CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-      if(${flag_var} MATCHES "/MD")
-        string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-      endif(${flag_var} MATCHES "/MD")
-    endforeach(flag_var)
   endif()
   target_compile_options(fbgemm_avx2 PRIVATE "/arch:AVX2")
   target_compile_options(fbgemm_avx512 PRIVATE "/arch:AVX512")
