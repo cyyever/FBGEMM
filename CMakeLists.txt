@@ -108,6 +108,15 @@ option(FBGEMM_BUILD_FBGEMM_GPU "Build fbgemm_gpu library" OFF)
 option(FBGEMM_USE_IPO "Build fbgemm with interprocedural optimization" OFF)
 option(DISABLE_FBGEMM_AUTOVEC "Disable FBGEMM Autovec" OFF)
 
+
+if(FBGEMM_LIBRARY_TYPE STREQUAL "default")
+  if (BUILD_SHARED_LIB)
+    set(FBGEMM_LIBRARY_TYPE "shared")
+  else()
+    set(FBGEMM_LIBRARY_TYPE "static")
+  endif()
+endif()
+
 if(FBGEMM_BUILD_TESTS)
   enable_testing()
 endif()
@@ -327,7 +336,7 @@ target_include_directories(fbgemm_autovec BEFORE
       PRIVATE "${ASMJIT_SRC_DIR}/src"
       PRIVATE "${CPUINFO_SOURCE_DIR}/include")
 
-if((FBGEMM_LIBRARY_TYPE STREQUAL "default" AND BUILD_SHARED_LIB) OR FBGEMM_LIBRARY_TYPE STREQUAL "shared")
+if(FBGEMM_LIBRARY_TYPE STREQUAL "shared")
   add_library(fbgemm SHARED
     $<TARGET_OBJECTS:fbgemm_generic>
     $<TARGET_OBJECTS:fbgemm_avx2>
@@ -338,7 +347,7 @@ if((FBGEMM_LIBRARY_TYPE STREQUAL "default" AND BUILD_SHARED_LIB) OR FBGEMM_LIBRA
   set_property(TARGET fbgemm_avx2 PROPERTY POSITION_INDEPENDENT_CODE ON)
   set_property(TARGET fbgemm_avx512 PROPERTY POSITION_INDEPENDENT_CODE ON)
   set_property(TARGET fbgemm_autovec PROPERTY POSITION_INDEPENDENT_CODE ON)
-elseif((FBGEMM_LIBRARY_TYPE STREQUAL "default" AND NOT BUILD_SHARED_LIB) OR FBGEMM_LIBRARY_TYPE STREQUAL "static")
+elseif(FBGEMM_LIBRARY_TYPE STREQUAL "static")
   add_library(fbgemm STATIC
     $<TARGET_OBJECTS:fbgemm_generic>
     $<TARGET_OBJECTS:fbgemm_avx2>
