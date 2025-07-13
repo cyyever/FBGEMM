@@ -179,7 +179,7 @@ CodeGenBase<uint8_t, int8_t, int32_t, int16_t>::getOrCreate<inst_set_t::avx2>(
 
     asmjit::FuncDetail func;
     func.init(
-        asmjit::FuncSignatureT<
+        asmjit::FuncSignature::build<
             void,
             uint8_t*,
             int8_t*,
