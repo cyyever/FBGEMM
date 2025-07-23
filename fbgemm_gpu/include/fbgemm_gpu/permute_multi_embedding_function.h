@@ -41,7 +41,7 @@ class PermuteMultiEmbeddingOp
 
   static variable_list backward(
       AutogradContext* ctx,
-      variable_list grad_output);
+      const variable_list& grad_output);
 };
 
 std::vector<Tensor> permute_multi_embedding_function_cpu(

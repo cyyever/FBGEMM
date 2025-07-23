@@ -13,35 +13,35 @@ using Tensor = at::Tensor;
 namespace fbgemm_gpu {
 
 DLL_PUBLIC Tensor lxu_cache_lookup_cpu(
-    Tensor linear_cache_indices,
-    Tensor /* lxu_cache_state */,
+    const Tensor& linear_cache_indices,
+    const Tensor& /* lxu_cache_state */,
     int64_t /* invalid_index */,
     bool /* gather_cache_stats */,
-    std::optional<Tensor> /* uvm_cache_stats */,
-    std::optional<Tensor> /* num_uniq_cache_indices */,
-    std::optional<Tensor> lxu_cache_locations_output) {
+    const std::optional<Tensor>& /* uvm_cache_stats */,
+    const std::optional<Tensor>& /* num_uniq_cache_indices */,
+    const std::optional<Tensor>& lxu_cache_locations_output) {
   return lxu_cache_locations_output.value_or(empty_like(
       linear_cache_indices, linear_cache_indices.options().dtype(at::kInt)));
 }
 
 DLL_PUBLIC Tensor direct_mapped_lxu_cache_lookup_cpu(
-    Tensor linear_cache_indices,
-    Tensor lxu_cache_state,
+    const Tensor& linear_cache_indices,
+    const Tensor& lxu_cache_state,
     int64_t invalid_index,
     bool gather_cache_stats,
-    std::optional<Tensor> uvm_cache_stats) {
+    const std::optional<Tensor>& uvm_cache_stats) {
   return empty_like(
       linear_cache_indices, linear_cache_indices.options().dtype(at::kInt));
 }
 
 DLL_PUBLIC Tensor lxu_cache_lookup_meta(
-    Tensor linear_cache_indices,
-    Tensor /* lxu_cache_state */,
+    const Tensor& linear_cache_indices,
+    const Tensor& /* lxu_cache_state */,
     int64_t /* invalid_index */,
     bool /* gather_cache_stats */,
-    std::optional<Tensor> /* uvm_cache_stats */,
-    std::optional<Tensor> /* num_uniq_cache_indices */,
-    std::optional<Tensor> lxu_cache_locations_output) {
+    const std::optional<Tensor>& /* uvm_cache_stats */,
+    const std::optional<Tensor>& /* num_uniq_cache_indices */,
+    const std::optional<Tensor>& lxu_cache_locations_output) {
   return lxu_cache_locations_output.value_or(empty_like(
       linear_cache_indices, linear_cache_indices.options().dtype(at::kInt)));
 }

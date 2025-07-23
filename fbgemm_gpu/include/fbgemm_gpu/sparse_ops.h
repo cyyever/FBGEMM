@@ -572,8 +572,8 @@ at::Tensor batched_unary_embeddings_backward_cuda(
 
 ///@ingroup sparse-data-cpu
 std::vector<at::Tensor> stacked_jagged_2d_to_dense_cpu(
-    at::Tensor values,
-    at::Tensor lengths,
+    const at::Tensor& values,
+    const at::Tensor& lengths,
     const std::vector<int64_t>& offset_per_key,
     const std::vector<int64_t>& max_lengths_per_key,
     int64_t padding_value);
@@ -590,24 +590,24 @@ at::Tensor jagged_dense_elementwise_add(
     const at::Tensor& y);
 
 at::Tensor jagged_1d_to_dense(
-    at::Tensor values,
-    at::Tensor offsets,
-    c10::SymInt max_L,
+    const at::Tensor& values,
+    const at::Tensor& offsets,
+    const c10::SymInt& max_L,
     int64_t padding_value);
 
 at::Tensor jagged_2d_to_dense(
-    at::Tensor values,
+    const at::Tensor& values,
     at::Tensor offsets,
     c10::SymInt max_sequence_length);
 
 at::Tensor jagged_1d_to_dense_meta(
-    at::Tensor values,
+    const at::Tensor& values,
     at::Tensor offsets,
     c10::SymInt max_L,
     int64_t padding_value);
 
 at::Tensor jagged_2d_to_dense_meta(
-    at::Tensor values,
+    const at::Tensor& values,
     at::Tensor offsets,
     c10::SymInt max_sequence_length);
 
@@ -631,7 +631,7 @@ std::tuple<at::Tensor, std::vector<at::Tensor>> jagged_dense_elementwise_mul(
 std::tuple<at::Tensor, std::vector<at::Tensor>> dense_to_jagged(
     const at::Tensor& dense,
     const std::vector<at::Tensor>& offsets,
-    std::optional<at::SymInt> total_L);
+    const std::optional<at::SymInt>& total_L);
 
 std::tuple<at::Tensor, std::vector<at::Tensor>>
 jagged_dense_elementwise_add_jagged_output(
@@ -641,8 +641,8 @@ jagged_dense_elementwise_add_jagged_output(
 
 ///@ingroup sparse-data-cpu
 at::Tensor jagged_2d_to_dense_forward_cpu(
-    at::Tensor values,
-    at::Tensor offsets,
+    const at::Tensor& values,
+    const at::Tensor& offsets,
     int64_t max_L);
 
 ///@ingroup sparse-data-cuda

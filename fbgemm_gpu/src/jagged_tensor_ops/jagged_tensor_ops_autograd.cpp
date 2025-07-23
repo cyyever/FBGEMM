@@ -16,6 +16,8 @@
 #include <torch/library.h>
 #include <torch/torch.h>
 
+#include <utility>
+
 #include "fbgemm_gpu/sparse_ops.h"
 #include "fbgemm_gpu/utils/tensor_utils.h"
 
@@ -651,7 +653,7 @@ class JaggedIndexSelect2dOp
     Tensor indices = *savedItr++;
     Tensor grad_offsets = *savedItr++;
     Tensor output_offsets = *savedItr++;
-    Tensor grad = grad_outputs[0];
+    const Tensor& grad = grad_outputs[0];
 
     TENSORS_ON_SAME_DEVICE(grad, indices);
 
@@ -746,7 +748,7 @@ class JaggedSliceOp : public torch::autograd::Function<JaggedSliceOp> {
     Tensor grad_lengths = *savedItr++;
     Tensor tgt_start = *savedItr++;
     Tensor src_start = *savedItr++;
-    Tensor grad = grad_outputs[0];
+    const Tensor& grad = grad_outputs[0];
 
     TENSORS_ON_SAME_DEVICE(grad, output_lengths);
 
@@ -854,7 +856,7 @@ Tensor batched_dense_vec_jagged_2d_mul(
 std::tuple<Tensor, std::vector<Tensor>> dense_to_jagged(
     const Tensor& dense,
     const std::vector<Tensor>& offsets,
-    std::optional<at::SymInt> total_L) {
+    const std::optional<at::SymInt>& total_L) {
   return {DenseToJaggedOp::apply(dense, offsets, total_L)[0], offsets};
 }
 
@@ -873,9 +875,9 @@ jagged_dense_elementwise_add_jagged_output(
 
 ///@ingroup jagged-tensor-ops-cpu
 Tensor jagged_1d_to_dense(
-    Tensor values,
-    Tensor offsets,
-    c10::SymInt max_L,
+    const Tensor& values,
+    const Tensor& offsets,
+    const c10::SymInt& max_L,
     int64_t padding_value) {
   TORCH_CHECK(values.dim() == 1);
   TORCH_CHECK(offsets.dim() == 1);
@@ -886,13 +888,13 @@ Tensor jagged_1d_to_dense(
 
 ///@ingroup jagged-tensor-ops-cpu
 Tensor jagged_2d_to_dense(
-    Tensor values,
+    const Tensor& values,
     Tensor offsets,
     c10::SymInt max_sequence_length) {
   return jagged_to_padded_dense(
       values,
-      {offsets},
-      {max_sequence_length},
+      {std::move(offsets)},
+      {std::move(max_sequence_length)},
       /*padding_value=*/0);
 }
 

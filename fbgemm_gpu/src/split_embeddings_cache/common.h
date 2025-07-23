@@ -42,82 +42,82 @@ Tensor linearize_cache_indices_meta(
     const int64_t indices_base_offset);
 
 Tensor linearize_cache_indices_from_row_idx_cpu(
-    Tensor cache_hash_size_cumsum,
-    Tensor update_table_indices,
-    Tensor update_row_indices);
+    const Tensor& cache_hash_size_cumsum,
+    const Tensor& update_table_indices,
+    const Tensor& update_row_indices);
 
 void lru_cache_populate_byte_cpu(
-    Tensor weights,
-    Tensor cache_hash_size_cumsum,
+    const Tensor& weights,
+    const Tensor& cache_hash_size_cumsum,
     int64_t total_cache_hash_size,
-    Tensor cache_index_table_map,
-    Tensor weights_offsets,
-    Tensor weights_tys,
-    Tensor D_offsets,
-    Tensor linear_cache_indices,
-    Tensor lxu_cache_state,
-    Tensor lxu_cache_weights,
+    const Tensor& cache_index_table_map,
+    const Tensor& weights_offsets,
+    const Tensor& weights_tys,
+    const Tensor& D_offsets,
+    const Tensor& linear_cache_indices,
+    const Tensor& lxu_cache_state,
+    const Tensor& lxu_cache_weights,
     int64_t time_stamp,
-    Tensor lru_state,
+    const Tensor& lru_state,
     int64_t row_alignment,
     bool gather_cache_stats,
-    std::optional<Tensor> uvm_cache_stats);
+    const std::optional<Tensor>& uvm_cache_stats);
 
 void direct_mapped_lru_cache_populate_byte_cpu(
-    Tensor weights,
-    Tensor cache_hash_size_cumsum,
+    const Tensor& weights,
+    const Tensor& cache_hash_size_cumsum,
     int64_t total_cache_hash_size,
-    Tensor cache_index_table_map,
-    Tensor weights_offsets,
-    Tensor weights_tys,
-    Tensor D_offsets,
-    Tensor linear_cache_indices,
-    Tensor lxu_cache_state,
-    Tensor lxu_cache_weights,
+    const Tensor& cache_index_table_map,
+    const Tensor& weights_offsets,
+    const Tensor& weights_tys,
+    const Tensor& D_offsets,
+    const Tensor& linear_cache_indices,
+    const Tensor& lxu_cache_state,
+    const Tensor& lxu_cache_weights,
     int64_t time_stamp,
-    Tensor lru_state,
-    Tensor lxu_cache_miss_timestamp,
+    const Tensor& lru_state,
+    const Tensor& lxu_cache_miss_timestamp,
     int64_t row_alignment,
     bool gather_cache_stats,
-    std::optional<Tensor> uvm_cache_stats);
+    const std::optional<Tensor>& uvm_cache_stats);
 
 void lfu_cache_populate_byte_cpu(
-    Tensor weights,
-    Tensor cache_hash_size_cumsum,
+    const Tensor& weights,
+    const Tensor& cache_hash_size_cumsum,
     int64_t total_cache_hash_size,
-    Tensor cache_index_table_map,
-    Tensor weights_offsets,
-    Tensor weights_tys,
-    Tensor D_offsets,
-    Tensor linear_cache_indices,
-    Tensor lxu_cache_state,
-    Tensor lxu_cache_weights,
-    Tensor lfu_state,
+    const Tensor& cache_index_table_map,
+    const Tensor& weights_offsets,
+    const Tensor& weights_tys,
+    const Tensor& D_offsets,
+    const Tensor& linear_cache_indices,
+    const Tensor& lxu_cache_state,
+    const Tensor& lxu_cache_weights,
+    const Tensor& lfu_state,
     int64_t row_alignment);
 
 Tensor lxu_cache_lookup_cpu(
-    Tensor linear_cache_indices,
-    Tensor lxu_cache_state,
+    const Tensor& linear_cache_indices,
+    const Tensor& lxu_cache_state,
     int64_t invalid_index,
     bool gather_cache_stats,
-    std::optional<Tensor> uvm_cache_stats,
-    std::optional<Tensor> num_uniq_cache_indices,
-    std::optional<Tensor> lxu_cache_locations_output);
+    const std::optional<Tensor>& uvm_cache_stats,
+    const std::optional<Tensor>& num_uniq_cache_indices,
+    const std::optional<Tensor>& lxu_cache_locations_output);
 
 Tensor lxu_cache_lookup_meta(
-    Tensor linear_cache_indices,
-    Tensor lxu_cache_state,
+    const Tensor& linear_cache_indices,
+    const Tensor& lxu_cache_state,
     int64_t invalid_index,
     bool gather_cache_stats,
-    std::optional<Tensor> uvm_cache_stats,
-    std::optional<Tensor> num_uniq_cache_indices,
-    std::optional<Tensor> lxu_cache_locations_output);
+    const std::optional<Tensor>& uvm_cache_stats,
+    const std::optional<Tensor>& num_uniq_cache_indices,
+    const std::optional<Tensor>& lxu_cache_locations_output);
 
 Tensor direct_mapped_lxu_cache_lookup_cpu(
-    Tensor linear_cache_indices,
-    Tensor lxu_cache_state,
+    const Tensor& linear_cache_indices,
+    const Tensor& lxu_cache_state,
     int64_t invalid_index,
     bool gather_cache_stats,
-    std::optional<Tensor> uvm_cache_stats);
+    const std::optional<Tensor>& uvm_cache_stats);
 
 } // namespace fbgemm_gpu

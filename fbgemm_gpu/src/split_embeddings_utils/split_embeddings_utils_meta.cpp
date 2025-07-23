@@ -21,9 +21,9 @@ generate_vbe_metadata_meta(
     const Tensor& /*D_offsets*/,
     const int64_t /*D*/,
     const bool /*nobag*/,
-    const c10::SymInt /*max_B_feature_rank*/,
+    const c10::SymInt& /*max_B_feature_rank*/,
     const int64_t /*info_B_num_bits*/,
-    const c10::SymInt total_B) {
+    const c10::SymInt& total_B) {
   Tensor row_output_offsets =
       at::empty_symint({total_B}, output_offsets_feature_rank.options());
   Tensor b_t_map = at::empty_symint({total_B}, B_offsets.options());
@@ -31,7 +31,7 @@ generate_vbe_metadata_meta(
 }
 
 std::tuple<int64_t, int64_t>
-get_infos_metadata_meta(Tensor /*unused*/, int64_t /*B*/, int64_t /*T*/) {
+get_infos_metadata_meta(const Tensor& /*unused*/, int64_t /*B*/, int64_t /*T*/) {
   return {-1, -1};
 }
 

@@ -84,23 +84,23 @@ void embedding_inplace_update_cpu(
     Tensor update_row_idx,
     Tensor update_offsets,
     const int64_t row_alignment,
-    std::optional<Tensor> lxu_cache_weights =
+    const std::optional<Tensor>& lxu_cache_weights =
         std::nullopt, // Not used, to match cache interface for CUDA op
-    std::optional<Tensor> lxu_cache_locations =
+    const std::optional<Tensor>& lxu_cache_locations =
         std::nullopt // Not used, to match cache interface for CUDA op
 );
 
 void dram_kv_embedding_inplace_update_cpu(
     torch::jit::Module* tbe_module,
-    std::string tbe_module_update_func_name,
-    Tensor weights_placements,
-    Tensor weights_offsets,
-    Tensor weights_tys,
-    Tensor D_offsets,
-    Tensor update_weights,
-    Tensor update_table_idx,
-    Tensor update_row_idx,
-    Tensor update_offsets,
+    const std::string& tbe_module_update_func_name,
+    const Tensor& weights_placements,
+    const Tensor& weights_offsets,
+    const Tensor& weights_tys,
+    const Tensor& D_offsets,
+    const Tensor& update_weights,
+    const Tensor& update_table_idx,
+    const Tensor& update_row_idx,
+    const Tensor& update_offsets,
     const int64_t row_alignment);
 
 /**

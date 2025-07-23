@@ -962,7 +962,7 @@ std::tuple<Tensor, Tensor> masked_select_jagged_1d(
 }
 
 Tensor
-jagged_2d_to_dense_forward_cpu(Tensor values, Tensor offsets, int64_t max_L) {
+jagged_2d_to_dense_forward_cpu(const Tensor& values, const Tensor& offsets, int64_t max_L) {
   TORCH_CHECK(values.dim() == 2);
   TORCH_CHECK(offsets.dim() == 1);
   TORCH_CHECK(max_L > 0);
@@ -1013,8 +1013,8 @@ std::vector<Tensor> stacked_jagged_1d_to_dense_cpu(
 
 // stacked ops
 std::vector<Tensor> stacked_jagged_2d_to_dense_cpu(
-    Tensor values,
-    Tensor lengths,
+    const Tensor& values,
+    const Tensor& lengths,
     const std::vector<int64_t>& offset_per_key,
     const std::vector<int64_t>& max_lengths_per_key,
     int64_t padding_value) {
@@ -1068,7 +1068,7 @@ void jagged_index_select_2d_kernel(
           int index_pos;
           binary_search_range_cpu(
               &index_pos,
-              reinterpret_cast<const offset_t*>(&output_offsets[0]),
+              reinterpret_cast<const offset_t*>(output_offsets.data()),
               static_cast<offset_t>(dense_output_offset),
               num_output_rows);
           const offset_t rel_index = dense_output_offset -
@@ -1212,7 +1212,7 @@ void jagged_index_add_2d_kernel(
       int index_pos;
       binary_search_range_cpu(
           &index_pos,
-          reinterpret_cast<const offset_t*>(&input_offsets[0]),
+          reinterpret_cast<const offset_t*>(input_offsets.data()),
           static_cast<offset_t>(dense_input_offset),
           num_input_rows);
       const offset_t rel_index = dense_input_offset -

@@ -23,9 +23,9 @@ DLL_PUBLIC Tensor linearize_cache_indices_cpu(
 }
 
 DLL_PUBLIC Tensor linearize_cache_indices_from_row_idx_cpu(
-    Tensor /*cache_hash_size_cumsum*/,
-    Tensor /*update_table_indices*/,
-    Tensor update_row_indices) {
+    const Tensor& /*cache_hash_size_cumsum*/,
+    const Tensor& /*update_table_indices*/,
+    const Tensor& update_row_indices) {
   return at::empty_like(update_row_indices);
 }
 
