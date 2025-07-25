@@ -94,7 +94,6 @@ function(cpp_library)
         set(lib_cc_flags
             ${args_CC_FLAGS}
             # Silence compiler warnings (in asmjit)
-            -Wno-deprecated-enum-enum-conversion
             -Wno-deprecated-declarations
             -Wall
             -Wextra
@@ -103,7 +102,6 @@ function(cpp_library)
             -Wimplicit-fallthrough
             -Wno-strict-aliasing
             -Wunused-variable
-            -Wno-c99-extensions
             -Wno-sign-compare
             -Wno-gnu-zero-variadic-macro-arguments
             -Wno-vla)
