@@ -88,6 +88,8 @@ function(cpp_library)
             /wd4244
             /wd4267
             /wd4305
+            # For recursive warnings in Fbgemm.h
+            /wd4717
             /wd4309)
 
     else()

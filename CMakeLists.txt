@@ -60,10 +60,13 @@ include(CheckCXXCompilerFlag)
 # Install libraries into correct locations on all platforms
 include(GNUInstallDirs)
 
+# Check AVX
+include(${MODULE_PATH}/FindAVX.cmake)
+
 # Load Python
 find_package(Python)
 
-set(FBGEMM_LIBRARY_TYPE "default"
+set(FBGEMM_LIBRARY_TYPE "static"
   CACHE STRING
   "Type of library (shared, static, or default) to build")
 
@@ -73,6 +76,7 @@ option(FBGEMM_BUILD_DOCS "Build fbgemm documentation" OFF)
 option(FBGEMM_USE_IPO "Build fbgemm with interprocedural optimization" OFF)
 option(DISABLE_FBGEMM_AUTOVEC "Disable FBGEMM Autovec" OFF)
 
+string(TOUPPER "${FBGEMM_LIBRARY_TYPE}" FBGEMM_LIBRARY_TYPE)
 set_property(CACHE FBGEMM_LIBRARY_TYPE PROPERTY STRINGS DEFAULT STATIC SHARED)
 if(FBGEMM_LIBRARY_TYPE STREQUAL "DEFAULT")
   if(BUILD_SHARED_LIB)
@@ -80,8 +84,6 @@ if(FBGEMM_LIBRARY_TYPE STREQUAL "DEFAULT")
   else()
     set(FBGEMM_LIBRARY_TYPE "STATIC")
   endif()
-else()
-  string(TOUPPER "${FBGEMM_LIBRARY_TYPE}" FBGEMM_LIBRARY_TYPE)
 endif()
 
 # Add address sanitizer
@@ -94,21 +96,6 @@ endif()
 
 if(DISABLE_FBGEMM_AUTOVEC)
   add_compile_definitions("DISABLE_FBGEMM_AUTOVEC")
-endif()
-
-################################################################################
-# AVX512 Support
-################################################################################
-
-if(MSVC)
-  CHECK_CXX_COMPILER_FLAG(/arch:AVX512 COMPILER_SUPPORTS_AVX512)
-  set(MSVC_BOOL True)
-else(MSVC)
-  CHECK_CXX_COMPILER_FLAG(-mavx512f COMPILER_SUPPORTS_AVX512)
-  set(MSVC_BOOL False)
-endif(MSVC)
-if(NOT COMPILER_SUPPORTS_AVX512)
-  message(FATAL_ERROR "A compiler with AVX512 support is required.")
 endif()
 
 ################################################################################
@@ -142,6 +129,12 @@ endif()
 ################################################################################
 # Prepare Sources
 ################################################################################
+
+if(MSVC)
+  set(MSVC_BOOL True)
+else()
+  set(MSVC_BOOL False)
+endif()
 
 if(NOT MSVC)
   set_source_files_properties(
@@ -180,6 +173,8 @@ cpp_library(
     $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}>
     $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${FBGEMM_SOURCE_DIR}/bench>
+  MSVC_FLAGS
+    /wd4717 /bigobj
   SANITIZER_OPTIONS
     "${FBGEMM_USE_SANITIZER}"
   DEFINITIONS
@@ -215,6 +210,7 @@ cpp_library(
     $<BUILD_INTERFACE:asmjit>
     fbgemm_generic
 )
+target_compile_definitions(fbgemm_generic PRIVATE HAS_AVX512)
 
 ################################################################################
 # FBGEMM AVX512 Target
@@ -308,6 +304,9 @@ if(NOT TARGET asmjit)
 
   add_subdirectory("${ASMJIT_SRC_DIR}" "${FBGEMM_BINARY_DIR}/asmjit")
   set_property(TARGET asmjit PROPERTY POSITION_INDEPENDENT_CODE ON)
+  if(MSVC)
+    target_compile_options(asmjit PRIVATE /wd5054)
+  endif()
 endif()
 
 ################################################################################
