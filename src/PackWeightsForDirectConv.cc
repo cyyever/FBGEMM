@@ -15,14 +15,11 @@
 #include <cassert>
 
 #include "./DirectConv.h" // @manual
+#include "./OptimizedKernelsAvx2.h" // @manual
 #include "fbgemm/ConvUtils.h"
 #include "fbgemm/Fbgemm.h"
 #include "fbgemm/FbgemmBuild.h"
 #include "fbgemm/UtilsAvx2.h"
-
-#if defined(FBGEMM_FBCODE) || !defined(__aarch64__)
-#include "./OptimizedKernelsAvx2.h" // @manual
-#endif // __aarch64__
 
 namespace fbgemm {
 
@@ -164,11 +161,6 @@ static void directConvRowSum(
     const uint8_t* A,
     int32_t* inSum,
     int32_t* rowSum) {
-#if !defined(FBGEMM_FBCODE) && defined(__aarch64__)
-  throw std::runtime_error(
-      "PackedDirectConvMatrix::directConvRowSum(): No fallback available for aarch64");
-#else
-
   int IN0 = conv_p.IN_DIM[0];
   int IN1 = conv_p.IN_DIM[1];
   int IC = conv_p.IC;
@@ -204,8 +196,6 @@ static void directConvRowSum(
         OUT1,
         5);
   */
-
-#endif // __aarch64__
 }
 
 template void directConvRowSum<1>(
@@ -247,11 +237,6 @@ void fbgemmDirectConv(
   if (thread_id > 0 || thread_id >= num_threads) {
     return;
   }
-
-#if !defined(FBGEMM_FBCODE) && defined(__aarch64__)
-  throw std::runtime_error(
-      "fbgemmDirectConv<SPATIAL_DIM, Q_GRAN, FUSE_RELU, BIAS_TYPE>(): No fallback available for aarch64");
-#else
 
   if constexpr (SPATIAL_DIM != 2) {
     static_assert(false && SPATIAL_DIM, "1d/3d direct conv not supported");
@@ -468,7 +453,6 @@ void fbgemmDirectConv(
     }
   } // else SPATIAL_DIM
 
-#endif // defined(FBGEMM_FBCODE) || !defined(__aarch64__)
 }
 
 #define INSTANTIATE_REQUANTIZE_SPATIAL_DIM(                        \
