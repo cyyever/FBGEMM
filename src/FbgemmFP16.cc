@@ -168,7 +168,7 @@ const isa_descriptor<float16>& getIsaHandlers(inst_set_t isa) {
   throw std::runtime_error("Unsupported uArch");
 }
 
-#ifdef FBGEMM_USE_REF_KERNEL
+#ifdef FBGEMM_FP16_FALLBACK_TO_REF_KERNEL
 template <>
 FBGEMM_API void ref_kernel<float16>(
     int kernel_nrows,
