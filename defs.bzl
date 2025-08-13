@@ -188,6 +188,7 @@ def get_fbgemm_inline_sve_srcs(msvc = False, buck = False):
     srcs = [
         "src/FbgemmFP16UKernelsSve128.cc",
         "src/KleidiAIFP16UKernelsNeon.cc",
+        "src/fp32/KleidiAIFP32UKernelsNeon.cc",
         "src/QuantUtilsNeon.cc",
         "src/UtilsSve.cc",
         "src/FbgemmFloat16ConvertSVE.cc",
