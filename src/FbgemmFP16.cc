@@ -203,14 +203,4 @@ FBGEMM_API void ref_kernel<float16>(
 }
 #endif // FBGEMM_FP16_FALLBACK_TO_REF_KERNEL
 
-template FBGEMM_API void cblas_gemm_compute(
-    const matrix_op_t transa,
-    const int m,
-    const float* A,
-    const PackedGemmMatrixB<float16>& Bp,
-    const float beta,
-    float* C,
-    int thread_id,
-    int num_threads);
-
 } // namespace fbgemm
