@@ -64,7 +64,7 @@ constexpr kernel_array_t<float16> kernel_fp16_sve128 = {
 #endif
 
 #ifdef FBGEMM_ENABLE_KLEIDIAI
-constexpr kernel_array_t<float16> kernel_fp16_neon = {
+constexpr kernel_array_t<float16> kernel_fp16_neon [[maybe_unused]] = {
     nullptr,
     kleidiai::gemmkernel_1x1_Neon_fp16_fA0fB0fC0,
     kleidiai::gemmkernel_2x1_Neon_fp16_fA0fB0fC0,
@@ -128,10 +128,10 @@ const isa_descriptor<float16>& getIsaHandlers(inst_set_t isa) {
   static isa_descriptor<float16> avx512_256_descriptor =
       std::make_tuple(kernel_fp16_avx512_256, partition_avx512);
 #ifdef __aarch64__
-#ifdef FBGEMM_ENABLE_KLEIDIAI
-  static isa_descriptor<float16> neon_descriptor =
-      std::make_tuple(kernel_fp16_neon, partition_neon);
-#endif
+// #ifdef FBGEMM_ENABLE_KLEIDIAI
+//   static isa_descriptor<float16> neon_descriptor =
+//       std::make_tuple(kernel_fp16_neon, partition_neon);
+// #endif
 #ifdef FBGEMM_ENABLE_FP16_SVE128
   static isa_descriptor<float16> sve128_descriptor =
       std::make_tuple(kernel_fp16_sve128, partition_sve128);
@@ -145,11 +145,11 @@ const isa_descriptor<float16>& getIsaHandlers(inst_set_t isa) {
       return sve128_descriptor;
 #endif
     case inst_set_t::anyarch:
-#ifdef FBGEMM_ENABLE_KLEIDIAI
-      return neon_descriptor;
-#else
+// #ifdef FBGEMM_ENABLE_KLEIDIAI
+//       return neon_descriptor;
+// #else
       throw std::runtime_error("Unsupported uArch");
-#endif
+// #endif
 #else
     case inst_set_t::anyarch:
 #endif
