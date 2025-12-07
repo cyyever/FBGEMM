@@ -9,9 +9,9 @@
 #include "./TransposeUtils.h" // @manual
 #include "./TransposeUtilsSve.h" // @manual
 
-namespace fbgemm {
 
-namespace internal {
+
+namespace fbgemm::internal {
 
 #if HAVE_SVE
 
@@ -176,6 +176,6 @@ void transpose_sve(
 
 #endif // HAVE_SVE
 
-} // namespace internal
+} // namespace fbgemm::internal
 
-} // namespace fbgemm
+
