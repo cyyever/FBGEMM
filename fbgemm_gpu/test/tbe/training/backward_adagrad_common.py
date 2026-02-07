@@ -299,6 +299,7 @@ def execute_backward_adagrad(  # noqa C901
         cc.split_embedding_weights()[t].data.copy_(b_weight)
 
     num_features = len(feature_table_map)
+<<<<<<< HEAD
     # Match nn.Embedding to features: build bs_features directly from feature_table_map
     bs_features = [bs[t] for t in feature_table_map]
 
