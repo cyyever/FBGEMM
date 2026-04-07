@@ -459,7 +459,7 @@ TEST_P(
       aligned_vector<int8_t> Bk(R * S);
       // limit min, max to int8_t range
       randFill<int8_t>(Bk, -16 + k % 112, 16 + k % 112);
-      copy(Bk.begin(), Bk.end(), B.begin() + k * R * S);
+      std::ranges::copy(Bk, B.begin() + k * R * S);
 
       B_zero_point[k] = 5 + k;
     }
@@ -604,7 +604,7 @@ TEST_P(
       aligned_vector<int8_t> Bk(K_T * K_H * K_W);
       // limit min, max to int8_t range
       randFill<int8_t>(Bk, -16 + k % 112, 16 + k % 112);
-      copy(Bk.begin(), Bk.end(), B.begin() + k * K_T * K_H * K_W);
+      std::ranges::copy(Bk, B.begin() + k * K_T * K_H * K_W);
 
       B_zero_point[k] = 5 + k;
     }
