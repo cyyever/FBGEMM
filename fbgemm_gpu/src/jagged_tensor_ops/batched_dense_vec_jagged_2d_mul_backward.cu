@@ -26,7 +26,8 @@ __global__ __launch_bounds__(kMaxThreads) void outer_prod_jagged_2d_output(
 
   const auto b_h_l_begin = blockIdx.x * blockDim.y + threadIdx.y;
   const auto b_h_l_step = gridDim.x * blockDim.y;
-  for (int b_h_l = b_h_l_begin; b_h_l < B * H * max_L; b_h_l += b_h_l_step) {
+  for (int64_t b_h_l = b_h_l_begin; b_h_l < (int64_t)B * H * max_L;
+       b_h_l += b_h_l_step) {
     const int b_h = b_h_l / max_L;
     const int b = b_h / H;
     const int h = b_h % H;
@@ -134,7 +135,7 @@ std::tuple<Tensor, Tensor> batched_dense_vec_jagged_2d_mul_backward(
 
                 FBGEMM_LAUNCH_KERNEL(
                     (outer_prod_jagged_2d_output<index_t, scalar_t>),
-                    div_round_up(B * H * max_L, block_dim_y),
+                    div_round_up((int64_t)B * H * max_L, block_dim_y),
                     dim3(block_dim_x, block_dim_y),
                     0,
                     at::cuda::getCurrentCUDAStream(),
