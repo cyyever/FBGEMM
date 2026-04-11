@@ -99,8 +99,7 @@ class GenEmbeddingSpMDMNBitLookup {
       bool use_offsets,
       int output_stride,
       int input_stride,
-      bool scale_bias_last,
-      bool is_bf16_out);
+      bool scale_bias_last);
 
  private:
   static asmjit::JitRuntime& runtime() {
@@ -113,11 +112,8 @@ class GenEmbeddingSpMDMNBitLookup {
 
   inline static mutex rtMutex_; ///< Control access to runtime;
 
-  // The hash depends on bit_rate, embedding dimension (block size), weighted
-  // sls, positional weights, normalize by lengths, prefetch distance,
-  // use_offsets, output_stride, input_stride, and scale_bias_last
   inline static CodeCache<
-      tuple<int, int, bool, bool, bool, int, bool, int, int, bool, bool>,
+      tuple<int, int, bool, bool, bool, int, bool, int, int, bool>,
       typename ReturnFunctionSignature<
           indxType,
           offsetType,
@@ -156,8 +152,8 @@ GenEmbeddingSpMDMNBitLookup<
         bool use_offsets,
         int output_stride,
         int input_stride,
-        bool scale_bias_last,
-        bool is_bf16_out) {
+        bool scale_bias_last) {
+  constexpr bool is_bf16_out = std::is_same_v<outType, bfloat16>;
   auto kernelSig = make_tuple(
       bit_rate,
       block_size,
@@ -168,8 +164,7 @@ GenEmbeddingSpMDMNBitLookup<
       use_offsets,
       output_stride,
       input_stride,
-      scale_bias_last,
-      is_bf16_out);
+      scale_bias_last);
 
   return codeCache_.getOrCreate(
       kernelSig,
@@ -365,7 +360,7 @@ GenEmbeddingSpMDMNBitLookup<
         --unroll_factor;
         bias_vreg = vec_reg_t(unroll_factor);
 
-        if (is_bf16_out) {
+        if constexpr (is_bf16_out) {
           --unroll_factor;
           ones_vreg = vec_reg_t(unroll_factor);
           a->mov(scratchReg2_, 1 << 15);
@@ -838,7 +833,7 @@ GenEmbeddingSpMDMNBitLookup<
             } else {
               // 16-bit output
               if constexpr (instSet == inst_set_t::avx2) {
-                if (is_bf16_out) {
+                if constexpr (is_bf16_out) {
                   a->vpaddd(out_vreg, out_vreg, ones_vreg);
                   a->vpsrld(out_vreg, out_vreg, 16);
                   a->vpackusdw(out_vreg, out_vreg, out_vreg);
@@ -869,7 +864,7 @@ GenEmbeddingSpMDMNBitLookup<
                 }
               } else {
                 if (remainder && vec_idx + v == num_vec_regs_per_block - 1) {
-                  if (is_bf16_out) {
+                  if constexpr (is_bf16_out) {
                     // bf16
                     a->k(x86::k(1)).vpaddd(out_vreg, out_vreg, ones_vreg);
                     a->k(x86::k(1)).vpsrld(out_vreg, out_vreg, 16);
@@ -878,7 +873,7 @@ GenEmbeddingSpMDMNBitLookup<
                     a->k(x86::k(1)).vcvtps2ph(dst_addr, out_vreg, 8);
                   }
                 } else {
-                  if (is_bf16_out) {
+                  if constexpr (is_bf16_out) {
                     // bf16
                     a->vpaddd(out_vreg, out_vreg, ones_vreg);
                     a->vpsrld(out_vreg, out_vreg, 16);
@@ -990,7 +985,7 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
         int64_t output_stride /*=-1*/,
         int64_t input_stride /*=-1*/,
         bool scale_bias_last /*=true*/,
-        const bool is_bf16_out /*=false*/,
+        [[maybe_unused]] const bool is_bf16_out_unused /*=false*/,
         const bool no_bag /*=false*/,
         int output_bit_rate /*=-1*/) {
   if (output_bit_rate == -1) {
@@ -1038,8 +1033,7 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
           use_offsets,
           output_stride,
           input_stride,
-          scale_bias_last,
-          is_bf16_out);
+          scale_bias_last);
       return [=](int64_t output_size,
                  int64_t index_size,
                  int64_t data_size,
@@ -1079,8 +1073,7 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
           use_offsets,
           output_stride,
           input_stride,
-          scale_bias_last,
-          is_bf16_out);
+          scale_bias_last);
       return [=](int64_t output_size,
                  int64_t index_size,
                  int64_t data_size,
@@ -1192,7 +1185,6 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
         /*output_stride=*/output_stride,
         /*input_stride=*/input_stride,
         /*scale_bias_last=*/scale_bias_last,
-        /*is_bf16_out=*/is_bf16_out,
         /*no_bag=*/no_bag,
         /*output_bit_rate=*/output_bit_rate);
   }
@@ -1227,7 +1219,6 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
         output_stride,
         input_stride,
         scale_bias_last,
-        is_bf16_out,
         no_bag,
         output_bit_rate);
   };
@@ -1297,8 +1288,7 @@ GenerateEmbeddingSpMDMNBitRowWiseSparse(
         use_offsets,
         /*output_stride=*/block_size,
         input_stride,
-        /*scale_bias_last=*/true,
-        /*is_bf16_out=*/false);
+        /*scale_bias_last=*/true);
     return [=](int64_t output_size,
                int64_t index_size,
                int64_t uncompressed_data_size,
@@ -1339,8 +1329,7 @@ GenerateEmbeddingSpMDMNBitRowWiseSparse(
         use_offsets,
         /*output_stride=*/block_size,
         input_stride,
-        /*scale_bias_last=*/true,
-        /*is_bf16_out=*/false);
+        /*scale_bias_last=*/true);
     return [=](int64_t output_size,
                int64_t index_size,
                int64_t uncompressed_data_size,
@@ -1460,7 +1449,8 @@ GenerateEmbeddingSpMDMNBitRowWiseSparse(
 
 #define INSTANTIATE_SPMDM_OUT_T(INDEX_TYPE, OFFSET_TYPE)                   \
   INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, float)           \
-  INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, uint16_t)        \
+  INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, float16)         \
+  INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, bfloat16)        \
   INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, uint8_t)         \
   template FBGEMM_API typename EmbeddingSpMDMRowWiseSparseKernelSignature< \
       uint8_t,                                                             \
