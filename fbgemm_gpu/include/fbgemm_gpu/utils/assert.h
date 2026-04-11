@@ -17,9 +17,6 @@
 // Note: Device Side Assertion (DSA) is currently only supported on CUDA.
 // We undefine TORCH_USE_CUDA_DSA for ROCm builds to disable the DSA code path.
 //
-// TODO: Enable DSA for ROCm after
-// https://github.com/pytorch/pytorch/pull/172679 lands
-//
 ////////////////////////////////////////////////////////////////////////////////
 
 #if defined(TORCH_USE_CUDA_DSA) && !defined(USE_ROCM)
