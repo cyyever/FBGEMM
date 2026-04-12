@@ -60,22 +60,9 @@ template <typename OutType>
 static inline void fill_output(
     OutType* out,
     const float* src,
-    const int64_t block_size,
-    const bool is_bf16_out) {
-  if constexpr (std::is_same_v<OutType, float>) {
-    for (int j = 0; j < block_size; ++j) {
-      out[j] = src[j];
-    }
-  } else if constexpr (std::is_same_v<OutType, uint16_t>) {
-    if (is_bf16_out) {
-      for (int j = 0; j < block_size; ++j) {
-        out[j] = cpu_float2bfloat16(src[j]);
-      }
-    } else {
-      for (int j = 0; j < block_size; ++j) {
-        out[j] = cpu_float2half(src[j]);
-      }
-    }
+    const int64_t block_size) {
+  for (int j = 0; j < block_size; ++j) {
+    out[j] = from_float<OutType>(src[j]);
   }
 }
 
@@ -120,11 +107,10 @@ static inline void fillZero(float* ptr, int64_t count) {
 }
 
 template <typename OutType>
-static inline EmbeddingStatsTracker::DataType get_output_type(
-    const bool is_bf16_out) {
+static inline EmbeddingStatsTracker::DataType get_output_type() {
   if constexpr (std::is_same_v<OutType, float>) {
     return EmbeddingStatsTracker::DataType::FP32;
-  } else if (std::is_same_v<OutType, uint16_t> && is_bf16_out) {
+  } else if constexpr (std::is_same_v<OutType, bfloat16>) {
     return EmbeddingStatsTracker::DataType::BF16;
   } else {
     return EmbeddingStatsTracker::DataType::FP16;
@@ -148,8 +134,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDM8Bit_autovec(
     const int64_t output_stride,
     const int64_t input_stride,
     const bool scale_bias_last,
-    const bool no_bag,
-    const bool is_bf16_out) {
+    const bool no_bag) {
   constexpr bool isOutput8bit = std::is_same_v<OutType, uint8_t>;
   if (data_size < 0) {
     return false;
@@ -200,9 +185,9 @@ static bool ALWAYS_INLINE EmbeddingSpMDM8Bit_autovec(
           bias = *(
               reinterpret_cast<const float*>(scale_bias_addr + sizeof(float)));
         } else {
-          scale = cpu_half2float(
+          scale = to_float(
               *reinterpret_cast<const float16*>(scale_bias_addr));
-          bias = cpu_half2float(*reinterpret_cast<const float16*>(
+          bias = to_float(*reinterpret_cast<const float16*>(
               scale_bias_addr + sizeof(float16)));
         }
         if (weights) {
@@ -223,7 +208,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDM8Bit_autovec(
           uint8_t value = input_row[j];
           buf[j] = std::fma(scale, static_cast<float>(value), bias);
         }
-        fill_output(out, buf, block_size, is_bf16_out);
+        fill_output(out, buf, block_size);
       }
       out += output_stride;
     } // m
@@ -233,7 +218,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDM8Bit_autovec(
         block_size,
         EmbeddingStatsTracker::DataType::INT8,
         isOutput8bit ? EmbeddingStatsTracker::DataType::INT8
-                     : get_output_type<OutType>(is_bf16_out),
+                     : get_output_type<OutType>(),
         output_size,
         1);
     return true;
@@ -255,7 +240,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDM8Bit_autovec(
         data_size,
         block_size,
         EmbeddingStatsTracker::DataType::INT8,
-        get_output_type<OutType>(is_bf16_out),
+        get_output_type<OutType>(),
         output_size,
         len);
 
@@ -294,8 +279,8 @@ static bool ALWAYS_INLINE EmbeddingSpMDM8Bit_autovec(
             *(reinterpret_cast<const float*>(scale_bias_addr + sizeof(float)));
       } else {
         scale =
-            cpu_half2float(*reinterpret_cast<const float16*>(scale_bias_addr));
-        bias = cpu_half2float(*reinterpret_cast<const float16*>(
+            to_float(*reinterpret_cast<const float16*>(scale_bias_addr));
+        bias = to_float(*reinterpret_cast<const float16*>(
             scale_bias_addr + sizeof(float16)));
       }
 
@@ -324,7 +309,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDM8Bit_autovec(
         buf[j] *= scale;
       }
     }
-    fill_output(out, buf, block_size, is_bf16_out);
+    fill_output(out, buf, block_size);
     out += output_stride;
   }
   return current == index_size;
@@ -348,7 +333,6 @@ static bool ALWAYS_INLINE EmbeddingSpMDMNBit_autovec(
     const int64_t output_stride,
     const int64_t input_stride,
     const bool scale_bias_last,
-    const bool is_bf16_out,
     const bool no_bag,
     int output_bit_rate) {
   nbit_embedding_sanity_check<OutType>(input_bit_rate, output_bit_rate, no_bag);
@@ -439,7 +423,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDMNBit_autovec(
         block_size,
         input_bit_rate == 4 ? EmbeddingStatsTracker::DataType::INT4
                             : EmbeddingStatsTracker::DataType::INT2,
-        get_output_type<OutType>(is_bf16_out),
+        get_output_type<OutType>(),
         output_size,
         len);
     fillZero(buf, rounded_block_size);
@@ -471,8 +455,8 @@ static bool ALWAYS_INLINE EmbeddingSpMDMNBit_autovec(
           *reinterpret_cast<const float16*>(scale_bias_addr + sizeof(float16));
       static_assert(sizeof(scale16) + sizeof(bias16) == scale_bias_size);
 
-      float scale = cpu_half2float(scale16);
-      float bias = cpu_half2float(bias16);
+      float scale = to_float(scale16);
+      float bias = to_float(bias16);
       if (weights != nullptr) {
         float weight = *weights_addr++;
         scale *= weight;
@@ -540,7 +524,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDMNBit_autovec(
         buf[j] *= scale;
       }
     }
-    fill_output(out, buf, block_size, is_bf16_out);
+    fill_output(out, buf, block_size);
     out += output_stride;
   }
   return current == index_size;
@@ -607,8 +591,8 @@ static bool ALWAYS_INLINE EmbeddingSpMDMNBitRowWiseSparse_autovec(
       const uint8_t* scale_bias_addr = input_row_base + scale_bias_offset;
 
       float scale =
-          cpu_half2float(*reinterpret_cast<const float16*>(scale_bias_addr));
-      float bias = cpu_half2float(
+          to_float(*reinterpret_cast<const float16*>(scale_bias_addr));
+      float bias = to_float(
           *reinterpret_cast<const float16*>(scale_bias_addr + sizeof(float16)));
 
       if (weights != nullptr) {
@@ -721,10 +705,6 @@ static bool ALWAYS_INLINE EmbeddingSpMDMNBitRowWiseSparse_autovec(
 /// set to `true` for FP32 autovec implementation (`bool`)
 /// @param no_bag If `true`, no embedding bag; set to `false` for FP32 autovec
 /// implementation (`bool`)
-/// @param is_bf16_out If `true`, output is `BFLOAT16` type; set to `false` for
-/// FP32 autovec implementation (`bool`)
-/// @param is_bf16_in If `true`, input is `BFLOAT16` type; set to `false` for
-/// FP32 autovec implementation (`bool`)
 template <
     typename InType,
     typename IndexType,
@@ -745,9 +725,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDM_autovec(
     const bool use_offsets,
     const int64_t output_stride,
     const int64_t input_stride,
-    const bool no_bag,
-    const bool is_bf16_out,
-    const bool is_bf16_in) {
+    const bool no_bag) {
   if (data_size < 0) {
     return false;
   }
@@ -775,36 +753,36 @@ static bool ALWAYS_INLINE EmbeddingSpMDM_autovec(
 #ifdef FBGEMM_VECTOR_WIDTH
         for (; j < block_size - (block_size % FBGEMM_VECTOR_WIDTH); ++j) {
           const InType* inptr = input + input_stride * idx + j;
-          buf[j] = weight * convert_to_float_ref(*inptr, is_bf16_in);
+          buf[j] = weight * to_float(*inptr);
         }
 #endif
         for (; j < block_size; ++j) {
           const InType* inptr = input + input_stride * idx + j;
-          buf[j] = weight * convert_to_float_ref(*inptr, is_bf16_in);
+          buf[j] = weight * to_float(*inptr);
         }
       } else {
         int64_t j = 0;
 #ifdef FBGEMM_VECTOR_WIDTH
         for (; j < block_size - (block_size % FBGEMM_VECTOR_WIDTH); ++j) {
           const InType* inptr = input + input_stride * idx + j;
-          buf[j] = convert_to_float_ref(*inptr, is_bf16_in);
+          buf[j] = to_float(*inptr);
         }
 #endif
         for (; j < block_size; ++j) {
           const InType* inptr = input + input_stride * idx + j;
-          buf[j] = convert_to_float_ref(*inptr, is_bf16_in);
+          buf[j] = to_float(*inptr);
         }
       }
-      fill_output(out, buf, block_size, is_bf16_out);
+      fill_output(out, buf, block_size);
       out += output_stride;
     } // m
 
     EmbeddingStatsTracker::getInstance().recordPattern(
         data_size,
         block_size,
-        is_bf16_in ? EmbeddingStatsTracker::DataType::BF16
+        std::is_same_v<InType, bfloat16> ? EmbeddingStatsTracker::DataType::BF16
                    : EmbeddingStatsTracker::DataType::FP32,
-        get_output_type<OutType>(is_bf16_out),
+        get_output_type<OutType>(),
         output_size,
         1);
 
@@ -846,9 +824,9 @@ static bool ALWAYS_INLINE EmbeddingSpMDM_autovec(
     EmbeddingStatsTracker::getInstance().recordPattern(
         data_size,
         block_size,
-        is_bf16_in ? EmbeddingStatsTracker::DataType::BF16
+        std::is_same_v<InType, bfloat16> ? EmbeddingStatsTracker::DataType::BF16
                    : EmbeddingStatsTracker::DataType::FP32,
-        get_output_type<OutType>(is_bf16_out),
+        get_output_type<OutType>(),
         output_size,
         len);
 
@@ -886,12 +864,12 @@ static bool ALWAYS_INLINE EmbeddingSpMDM_autovec(
 #ifdef FBGEMM_VECTOR_WIDTH
       for (; j < block_size - (block_size % FBGEMM_VECTOR_WIDTH); ++j) {
         InType value = *input_row++;
-        buf[j] = std::fma(w, convert_to_float_ref(value, is_bf16_in), buf[j]);
+        buf[j] = std::fma(w, to_float(value), buf[j]);
       }
 #endif
       for (; j < block_size; ++j) {
         InType value = *input_row++;
-        buf[j] = std::fma(w, convert_to_float_ref(value, is_bf16_in), buf[j]);
+        buf[j] = std::fma(w, to_float(value), buf[j]);
       }
 
       ++current;
@@ -904,7 +882,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDM_autovec(
       }
     }
 
-    fill_output(out, buf, block_size, is_bf16_out);
+    fill_output(out, buf, block_size);
     out += output_stride;
   }
   return current == index_size;
@@ -1055,7 +1033,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDMRowWiseSparse_autovec(
           const InType* inptr = input_row++;
           out[j] = std::fma(
               weight,
-              std::is_same_v<InType, float16> ? cpu_half2float(*inptr) : *inptr,
+              to_float(*inptr),
               out[j]);
         }
 #endif
@@ -1063,7 +1041,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDMRowWiseSparse_autovec(
           const InType* inptr = input_row++;
           out[j] = std::fma(
               weight,
-              std::is_same_v<InType, float16> ? cpu_half2float(*inptr) : *inptr,
+              to_float(*inptr),
               out[j]);
         }
       }
@@ -1130,8 +1108,6 @@ void Float8ToFloat_ref_batch(
 /// for FP8 autovec implementation (`int64_t`)
 /// @param exponent_bits Bits to use in exponent
 /// @param exponent_bias Bias to use in exponent
-/// @param is_bf16_out If `true`, output is `BFLOAT16` type; set to `false` for
-/// FP8 autovec implementation (`bool`)
 template <typename IndexType, typename OffsetType, typename OutType>
 static bool ALWAYS_INLINE EmbeddingSpMDMFP8_autovec(
     const int64_t block_size,
@@ -1149,8 +1125,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDMFP8_autovec(
     const int64_t output_stride,
     const int64_t input_stride,
     const int exponent_bits,
-    const int exponent_bias,
-    const bool is_bf16_out) {
+    const int exponent_bias) {
   if (data_size < 0) {
     return false;
   }
@@ -1207,7 +1182,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDMFP8_autovec(
         data_size,
         block_size,
         EmbeddingStatsTracker::DataType::FP8,
-        get_output_type<OutType>(is_bf16_out),
+        get_output_type<OutType>(),
         output_size,
         len);
 
@@ -1282,7 +1257,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDMFP8_autovec(
       }
     }
 
-    fill_output(out, buf, block_size, is_bf16_out);
+    fill_output(out, buf, block_size);
     out += output_stride;
   }
   return current == index_size;
@@ -1359,9 +1334,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
         int64_t output_stride,
         int64_t input_stride,
         bool scale_bias_last,
-        bool no_bag,
-        bool is_bf16_out,
-        bool is_bf16_in) {
+        bool no_bag) {
   if (output_stride == -1) {
     output_stride = block_size;
   }
@@ -1384,9 +1357,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
     OUTPUT_STRIDE,                                                         \
     INPUT_STRIDE,                                                          \
     SCALE_BIAS_LAST,                                                       \
-    NO_BAG,                                                                \
-    IS_BF16_OUT,                                                           \
-    IS_BF16_IN)                                                            \
+    NO_BAG)                                                                \
   if (match(BLOCK_SIZE, block_size) && match(HAS_WEIGHT, has_weight) &&    \
       match(NORMALIZE_BY_LENGTHS, normalize_by_lengths) &&                 \
       match(PREFETCH, prefetch) &&                                         \
@@ -1394,8 +1365,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       match(USE_OFFSETS, use_offsets) &&                                   \
       match(OUTPUT_STRIDE, output_stride) &&                               \
       match(INPUT_STRIDE, input_stride) &&                                 \
-      match(SCALE_BIAS_LAST, scale_bias_last) && match(NO_BAG, no_bag) &&  \
-      match(IS_BF16_OUT, is_bf16_out) && match(IS_BF16_IN, is_bf16_in)) {  \
+      match(SCALE_BIAS_LAST, scale_bias_last) && match(NO_BAG, no_bag)) {  \
     return [=](int64_t output_size,                                        \
                int64_t index_size,                                         \
                int64_t data_size,                                          \
@@ -1411,7 +1381,6 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       }                                                                    \
       if constexpr (std::is_same_v<InType, uint8_t>) {                     \
         const uint8_t* input_u8 = reinterpret_cast<const uint8_t*>(input); \
-        assert(!specialize(IS_BF16_IN, is_bf16_in));                       \
         return EmbeddingSpMDM8Bit_autovec(                                 \
             specialize(BLOCK_SIZE, block_size),                            \
             output_size,                                                   \
@@ -1428,8 +1397,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
             specialize(OUTPUT_STRIDE, output_stride),                      \
             specialize(INPUT_STRIDE, input_stride),                        \
             specialize(SCALE_BIAS_LAST, scale_bias_last),                  \
-            specialize(NO_BAG, no_bag),                                    \
-            specialize(IS_BF16_OUT, is_bf16_out));                         \
+            specialize(NO_BAG, no_bag));                                   \
       } else {                                                             \
         return EmbeddingSpMDM_autovec(                                     \
             /*block_size=*/specialize(BLOCK_SIZE, block_size),             \
@@ -1446,9 +1414,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
             /*use_offsets=*/specialize(USE_OFFSETS, use_offsets),          \
             /*output_stride=*/specialize(OUTPUT_STRIDE, output_stride),    \
             /*input_stride=*/specialize(INPUT_STRIDE, input_stride),       \
-            /*no_bag=*/specialize(NO_BAG, no_bag),                         \
-            /*is_bf16_out=*/specialize(IS_BF16_OUT, is_bf16_out),          \
-            /*is_bf16_in=*/specialize(IS_BF16_IN, is_bf16_in));            \
+            /*no_bag=*/specialize(NO_BAG, no_bag));                         \
       }                                                                    \
     };                                                                     \
   }
@@ -1460,9 +1426,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
     IS_WEIGHT_POSITIONAL,                                                   \
     USE_OFFSETS,                                                            \
     SCALE_BIAS_LAST,                                                        \
-    NO_BAG,                                                                 \
-    IS_BF16_OUT,                                                            \
-    IS_BF16_IN)                                                             \
+    NO_BAG)                                                             \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{4}),                                     \
       HAS_WEIGHT,                                                           \
@@ -1473,9 +1437,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(4, false)),    \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                               \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{24}),                                    \
       HAS_WEIGHT,                                                           \
@@ -1486,9 +1448,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(24, false)),   \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{32}),                                    \
       HAS_WEIGHT,                                                           \
@@ -1499,9 +1459,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(32, false)),   \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{36}),                                    \
       HAS_WEIGHT,                                                           \
@@ -1512,9 +1470,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(36, false)),   \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{64}),                                    \
       HAS_WEIGHT,                                                           \
@@ -1525,9 +1481,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(64, false)),   \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{72}),                                    \
       HAS_WEIGHT,                                                           \
@@ -1538,9 +1492,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(72, false)),   \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{96}),                                    \
       HAS_WEIGHT,                                                           \
@@ -1551,9 +1503,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(96, false)),   \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{124}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1564,9 +1514,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(124, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{128}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1577,9 +1525,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(128, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{252}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1590,9 +1536,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(252, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{256}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1603,9 +1547,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(256, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{320}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1616,9 +1558,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(320, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{384}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1629,9 +1569,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(384, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{508}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1642,9 +1580,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(508, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{512}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1655,9 +1591,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(512, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{576}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1668,9 +1602,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(576, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{768}),                                   \
       HAS_WEIGHT,                                                           \
@@ -1681,9 +1613,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(768, false)),  \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)                                                           \
+      NO_BAG)                                                           \
   SPECIALIZE(                                                               \
       /*BLOCK_SIZE*/ fixed(int64_t{1024}),                                  \
       HAS_WEIGHT,                                                           \
@@ -1694,9 +1624,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*OUTPUT_STRIDE*/ var,                                                \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMWithStrides<InType>(1024, false)), \
       SCALE_BIAS_LAST,                                                      \
-      NO_BAG,                                                               \
-      IS_BF16_OUT,                                                          \
-      IS_BF16_IN)
+      NO_BAG)
 
 #ifdef FBGEMM_MORE_SPECIALIZATION
   SPECIALIZE_BLOCK_SIZE(
@@ -1706,9 +1634,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*IS_WEIGHT_POSITIONAL*/ fixed(false),
       /*USE_OFFSETS*/ fixed(true),
       /*SCALE_BIAS_LAST*/ fixed(false),
-      /*NO_BAG*/ fixed(false),
-      /*IS_BF16_OUT*/ var,
-      /*IS_BF16_IN*/ var)
+      /*NO_BAG*/ fixed(false))
   SPECIALIZE_BLOCK_SIZE(
       /*HAS_WEIGHT*/ fixed(false),
       /*NORMALIZE_BY_LENGTHS*/ fixed(false),
@@ -1716,9 +1642,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*IS_WEIGHT_POSITIONAL*/ fixed(false),
       /*USE_OFFSETS*/ fixed(true),
       /*SCALE_BIAS_LAST*/ fixed(false),
-      /*NO_BAG*/ fixed(false),
-      /*IS_BF16_OUT*/ var,
-      /*IS_BF16_IN*/ var)
+      /*NO_BAG*/ fixed(false))
   SPECIALIZE_BLOCK_SIZE(
       /*HAS_WEIGHT*/ fixed(true),
       /*NORMALIZE_BY_LENGTHS*/ fixed(false),
@@ -1726,9 +1650,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*IS_WEIGHT_POSITIONAL*/ fixed(false),
       /*USE_OFFSETS*/ fixed(true),
       /*SCALE_BIAS_LAST*/ fixed(true),
-      /*NO_BAG*/ fixed(false),
-      /*IS_BF16_OUT*/ var,
-      /*IS_BF16_IN*/ var)
+      /*NO_BAG*/ fixed(false))
   SPECIALIZE_BLOCK_SIZE(
       /*HAS_WEIGHT*/ fixed(false),
       /*NORMALIZE_BY_LENGTHS*/ fixed(false),
@@ -1736,9 +1658,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       /*IS_WEIGHT_POSITIONAL*/ fixed(false),
       /*USE_OFFSETS*/ fixed(true),
       /*SCALE_BIAS_LAST*/ fixed(true),
-      /*NO_BAG*/ fixed(false),
-      /*IS_BF16_OUT*/ var,
-      /*IS_BF16_IN*/ var)
+      /*NO_BAG*/ fixed(false))
   WARN_ONCE(
       "fbgemm warning: "
       "using non-specialized EmbeddingSpMDM_autovec (may be slow)\n"
@@ -1757,7 +1677,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
 #endif
 
   // Catch-all case.
-  SPECIALIZE(var, var, var, var, var, var, var, var, var, var, var, var)
+  SPECIALIZE(var, var, var, var, var, var, var, var, var, var)
   abort(); // should not get here
 
 #undef SPECIALIZE_BLOCK_SIZE
@@ -1787,7 +1707,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
     int64_t output_stride,
     int64_t input_stride,
     bool scale_bias_last,
-    bool is_bf16_out,
     bool no_bag,
     int output_bit_rate) {
   if (output_bit_rate == -1) {
@@ -1816,7 +1735,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
     OUTPUT_STRIDE,                                                           \
     INPUT_STRIDE,                                                            \
     SCALE_BIAS_LAST,                                                         \
-    IS_BF16_OUT,                                                             \
     NO_BAG,                                                                  \
     OUTPUT_BIT_RATE)                                                         \
   if (match(INPUT_BIT_RATE, input_bit_rate) &&                               \
@@ -1827,7 +1745,7 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       match(OUTPUT_STRIDE, output_stride) &&                                 \
       match(INPUT_STRIDE, input_stride) &&                                   \
       match(SCALE_BIAS_LAST, scale_bias_last) &&                             \
-      match(IS_BF16_OUT, is_bf16_out) && match(NO_BAG, no_bag) &&            \
+      match(NO_BAG, no_bag) &&                                               \
       match(OUTPUT_BIT_RATE, output_bit_rate)) {                             \
     return [=](int64_t output_size,                                          \
                int64_t index_size,                                           \
@@ -1859,7 +1777,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
           /*output_stride=*/specialize(OUTPUT_STRIDE, output_stride),        \
           /*input_stride=*/specialize(INPUT_STRIDE, input_stride),           \
           /*scale_bias_last=*/specialize(SCALE_BIAS_LAST, scale_bias_last),  \
-          /*is_bf16_out=*/specialize(IS_BF16_OUT, is_bf16_out),              \
           /*no_bag=*/specialize(NO_BAG, no_bag),                             \
           /*output_bit_rate=*/specialize(OUTPUT_BIT_RATE, output_bit_rate)); \
     };                                                                       \
@@ -1872,7 +1789,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
     IS_WEIGHT_POSITIONAL,                                                      \
     USE_OFFSETS,                                                               \
     SCALE_BIAS_LAST,                                                           \
-    IS_BF16_OUT,                                                               \
     NO_BAG,                                                                    \
     OUTPUT_BIT_RATE)                                                           \
   SPECIALIZE(                                                                  \
@@ -1885,7 +1801,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 32)),  \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -1898,7 +1813,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 56)),  \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -1911,7 +1825,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 64)),  \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -1924,7 +1837,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 96)),  \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -1937,7 +1849,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 120)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -1950,7 +1861,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 128)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -1963,7 +1873,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 248)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -1976,7 +1885,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 256)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -1989,7 +1897,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 320)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -2002,7 +1909,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 384)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -2015,7 +1921,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 512)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -2028,7 +1933,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 576)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -2041,7 +1945,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var,                                                   \
       /*INPUT_STRIDE*/ fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 768)), \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)                                                         \
   SPECIALIZE(                                                                  \
@@ -2054,7 +1957,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*OUTPUT_STRIDE*/ var, /*INPUT_STRIDE*/                                  \
       fixed(stride_SpMDMNBitWith(INPUT_BIT_RATE.value, 1024)),                 \
       SCALE_BIAS_LAST,                                                         \
-      IS_BF16_OUT,                                                             \
       NO_BAG,                                                                  \
       OUTPUT_BIT_RATE)
 
@@ -2064,7 +1966,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
     IS_WEIGHT_POSITIONAL,                            \
     USE_OFFSETS,                                     \
     SCALE_BIAS_LAST,                                 \
-    IS_BF16_OUT,                                     \
     NO_BAG)                                          \
   SPECIALIZE_BLOCK_SIZE(/*INPUT_BIT_RATE*/ fixed(4), \
                         HAS_WEIGHT,                  \
@@ -2072,7 +1973,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
                         IS_WEIGHT_POSITIONAL,        \
                         USE_OFFSETS,                 \
                         SCALE_BIAS_LAST,             \
-                        IS_BF16_OUT,                 \
                         NO_BAG,                      \
                         /*OUTPUT_BIT_RATE*/ fixed(int{8 * sizeof(OutType)}))
 
@@ -2083,7 +1983,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*IS_WEIGHT_POSITIONAL*/ fixed(false),
       /*USE_OFFSETS*/ fixed(true),
       /*SCALE_BIAS_LAST*/ fixed(false),
-      /*IS_BF16_OUT*/ var,
       /*NO_BAG*/ fixed(false))
   SPECIALIZE_INPUT_RATE(
       /*HAS_WEIGHT*/ fixed(false),
@@ -2091,7 +1990,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*IS_WEIGHT_POSITIONAL*/ fixed(false),
       /*USE_OFFSETS*/ fixed(true),
       /*SCALE_BIAS_LAST*/ fixed(false),
-      /*IS_BF16_OUT*/ var,
       /*NO_BAG*/ fixed(false))
   SPECIALIZE_INPUT_RATE(
       /*HAS_WEIGHT*/ fixed(true),
@@ -2099,7 +1997,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*IS_WEIGHT_POSITIONAL*/ fixed(false),
       /*USE_OFFSETS*/ fixed(true),
       /*SCALE_BIAS_LAST*/ fixed(true),
-      /*IS_BF16_OUT*/ var,
       /*NO_BAG*/ fixed(false))
   SPECIALIZE_INPUT_RATE(
       /*HAS_WEIGHT*/ fixed(false),
@@ -2107,7 +2004,6 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       /*IS_WEIGHT_POSITIONAL*/ fixed(false),
       /*USE_OFFSETS*/ fixed(true),
       /*SCALE_BIAS_LAST*/ fixed(true),
-      /*IS_BF16_OUT*/ var,
       /*NO_BAG*/ fixed(false))
   WARN_ONCE(
       "fbgemm warning: "
@@ -2141,11 +2037,9 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
       var,
       var,
       var,
-      var,
       var);
   SPECIALIZE(
       /*INPUT_BIT_RATE*/ fixed(4),
-      var,
       var,
       var,
       var,
@@ -2177,8 +2071,7 @@ GenerateEmbeddingSpMDMFP8WithStrides_autovec(
     int64_t output_stride,
     int64_t input_stride,
     int exponent_bits,
-    int exponent_bias,
-    bool is_bf16_out) {
+    int exponent_bias) {
   if (output_stride == -1) {
     output_stride = block_size;
   }
@@ -2209,8 +2102,7 @@ GenerateEmbeddingSpMDMFP8WithStrides_autovec(
         /*output_stride=*/output_stride,
         /*input_stride=*/input_stride,
         /*exponent_bits=*/exponent_bits,
-        /*exponent_bias=*/exponent_bias,
-        /*is_bf16_out=*/is_bf16_out);
+        /*exponent_bias=*/exponent_bias);
   };
 }
 
@@ -2275,7 +2167,6 @@ GenerateEmbeddingSpMDMRowWiseSparse_autovec(
       int64_t output_stride,                                                   \
       int64_t input_stride,                                                    \
       bool scale_bias_last,                                                    \
-      bool is_bf16_out,                                                        \
       bool no_bag,                                                             \
       int output_bit_rate);
 
@@ -2296,16 +2187,16 @@ GenerateEmbeddingSpMDMRowWiseSparse_autovec(
       int64_t output_stride,                                     \
       int64_t input_stride,                                      \
       int exponent_bits,                                         \
-      int exponent_bias,                                         \
-      bool is_bf16_out);
+      int exponent_bias);
 
 #define INSTANTIATE_SPMDM_BASE(INDEX_TYPE, OFFSET_TYPE, OUT_TYPE)        \
   INSTANTIATE_SPMDM_NBIT_WITH_STRIDES(INDEX_TYPE, OFFSET_TYPE, OUT_TYPE) \
   INSTANTIATE_SPMDM_FP8(INDEX_TYPE, OFFSET_TYPE, OUT_TYPE)
 
-#define INSTANTIATE_SPMDM_OUT_T(INDEX_TYPE, OFFSET_TYPE)   \
-  INSTANTIATE_SPMDM_BASE(INDEX_TYPE, OFFSET_TYPE, float)   \
-  INSTANTIATE_SPMDM_BASE(INDEX_TYPE, OFFSET_TYPE, float16) \
+#define INSTANTIATE_SPMDM_OUT_T(INDEX_TYPE, OFFSET_TYPE)    \
+  INSTANTIATE_SPMDM_BASE(INDEX_TYPE, OFFSET_TYPE, float)    \
+  INSTANTIATE_SPMDM_BASE(INDEX_TYPE, OFFSET_TYPE, float16)  \
+  INSTANTIATE_SPMDM_BASE(INDEX_TYPE, OFFSET_TYPE, bfloat16) \
   INSTANTIATE_SPMDM_BASE(INDEX_TYPE, OFFSET_TYPE, uint8_t)
 
 #define INSTANTIATE_SPMDM_OFFSET_T(INDEX_TYPE) \
@@ -2352,13 +2243,12 @@ INSTANTIATE_SPMDM_OFFSET_T(int64_t)
       int64_t output_stride,                                               \
       int64_t input_stride,                                                \
       bool scale_bias_last,                                                \
-      bool no_bag,                                                         \
-      bool is_bf16_out,                                                    \
-      bool is_bf16_in);
+      bool no_bag);
 
 #define INSTANTIATE_SPMDM_OUT_T(IN_TYPE, INDEX_TYPE, OFFSET_TYPE)        \
   INSTANTIATE_SPMDM_BASE(IN_TYPE, INDEX_TYPE, OFFSET_TYPE, float)        \
   INSTANTIATE_SPMDM_BASE(IN_TYPE, INDEX_TYPE, OFFSET_TYPE, float16)      \
+  INSTANTIATE_SPMDM_BASE(IN_TYPE, INDEX_TYPE, OFFSET_TYPE, bfloat16)     \
   INSTANTIATE_SPMDM_BASE(IN_TYPE, INDEX_TYPE, OFFSET_TYPE, std::uint8_t) \
   INSTANTIATE_SPMDM_ROWWISE(IN_TYPE, INDEX_TYPE, OFFSET_TYPE)
 
@@ -2372,6 +2262,7 @@ INSTANTIATE_SPMDM_OFFSET_T(int64_t)
 
 INSTANTIATE_SPMDM_INDEX_T(float)
 INSTANTIATE_SPMDM_INDEX_T(float16)
+INSTANTIATE_SPMDM_INDEX_T(bfloat16)
 INSTANTIATE_SPMDM_INDEX_T(std::uint8_t)
 
 #undef INSTANTIATE_SPMDM_ROWWISE

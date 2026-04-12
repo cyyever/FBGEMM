@@ -98,8 +98,7 @@ class GenEmbeddingSpMDMNBitLookup {
       bool use_offsets,
       int output_stride,
       int input_stride,
-      bool scale_bias_last,
-      bool is_bf16_out);
+      bool scale_bias_last);
 
  private:
   static asmjit::JitRuntime& runtime() {
@@ -116,7 +115,7 @@ class GenEmbeddingSpMDMNBitLookup {
   // sls, positional weights, normalize by lengths, prefetch distance,
   // use_offsets, output_stride, input_stride, and scale_bias_last
   inline static CodeCache<
-      tuple<int, int, bool, bool, bool, int, bool, int, int, bool, bool>,
+      tuple<int, int, bool, bool, bool, int, bool, int, int, bool>,
       typename ReturnFunctionSignature<
           indxType,
           offsetType,
@@ -155,8 +154,8 @@ GenEmbeddingSpMDMNBitLookup<
         bool use_offsets,
         int output_stride,
         int input_stride,
-        bool scale_bias_last,
-        bool is_bf16_out) {
+        bool scale_bias_last) {
+  constexpr bool is_bf16_out = std::is_same_v<outType, bfloat16>;
   auto kernelSig = make_tuple(
       bit_rate,
       block_size,
@@ -167,8 +166,7 @@ GenEmbeddingSpMDMNBitLookup<
       use_offsets,
       output_stride,
       input_stride,
-      scale_bias_last,
-      is_bf16_out);
+      scale_bias_last);
 
   return codeCache_.getOrCreate(
       kernelSig,
@@ -406,7 +404,7 @@ GenEmbeddingSpMDMNBitLookup<
           // AVX512 doesn't need to use vector register for masking
           --unroll_factor;
           mask_vreg = x86::ymm(unroll_factor);
-          if (remainder > 1 && std::is_same_v<outType, uint16_t>) {
+          if (remainder > 1 && (std::is_same_v<outType, float16> || std::is_same_v<outType, bfloat16>)) {
             --unroll_factor;
             mask_fp16_vreg = x86::xmm(unroll_factor);
           }
@@ -433,7 +431,7 @@ GenEmbeddingSpMDMNBitLookup<
                 mask_vreg,
                 x86::ymmword_ptr(
                     scratchReg1_, (vlen - remainder) % vlen * sizeof(int32_t)));
-            if constexpr (std::is_same_v<outType, uint16_t>) {
+            if constexpr ((std::is_same_v<outType, float16> || std::is_same_v<outType, bfloat16>)) {
               if (remainder > 1) {
                 a->vmovups(
                     mask_fp16_vreg,
@@ -939,7 +937,7 @@ GenEmbeddingSpMDMNBitLookup<
         a->bind(exit);
 
         if (remainder && instSet == inst_set_t::avx2 &&
-            std::is_same_v<outType, uint16_t>) {
+            (std::is_same_v<outType, float16> || std::is_same_v<outType, bfloat16>)) {
           a->lea(x86::rsp, x86::ymmword_ptr(x86::rsp, vlen * sizeof(int32_t)));
         }
 
@@ -989,7 +987,7 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
         int64_t output_stride /*=-1*/,
         int64_t input_stride /*=-1*/,
         bool scale_bias_last /*=true*/,
-        const bool is_bf16_out /*=false*/,
+        [[maybe_unused]] const bool is_bf16_out_unused /*=false*/,
         const bool no_bag /*=false*/,
         int output_bit_rate /*=-1*/) {
   if (output_bit_rate == -1) {
@@ -1037,8 +1035,7 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
           use_offsets,
           output_stride,
           input_stride,
-          scale_bias_last,
-          is_bf16_out);
+          scale_bias_last);
       return [=](int64_t output_size,
                  int64_t index_size,
                  int64_t data_size,
@@ -1078,8 +1075,7 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
           use_offsets,
           output_stride,
           input_stride,
-          scale_bias_last,
-          is_bf16_out);
+          scale_bias_last);
       return [=](int64_t output_size,
                  int64_t index_size,
                  int64_t data_size,
@@ -1123,7 +1119,6 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
         /*output_stride=*/output_stride,
         /*input_stride=*/input_stride,
         /*scale_bias_last=*/scale_bias_last,
-        /*is_bf16_out=*/is_bf16_out,
         /*no_bag=*/no_bag,
         /*output_bit_rate=*/output_bit_rate);
   }
@@ -1158,7 +1153,6 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
         output_stride,
         input_stride,
         scale_bias_last,
-        is_bf16_out,
         no_bag,
         output_bit_rate);
   };
@@ -1228,8 +1222,7 @@ GenerateEmbeddingSpMDMNBitRowWiseSparse(
         use_offsets,
         /*output_stride=*/block_size,
         input_stride,
-        /*scale_bias_last=*/true,
-        /*is_bf16_out=*/false);
+        /*scale_bias_last=*/true);
     return [=](int64_t output_size,
                int64_t index_size,
                int64_t uncompressed_data_size,
@@ -1270,8 +1263,7 @@ GenerateEmbeddingSpMDMNBitRowWiseSparse(
         use_offsets,
         /*output_stride=*/block_size,
         input_stride,
-        /*scale_bias_last=*/true,
-        /*is_bf16_out=*/false);
+        /*scale_bias_last=*/true);
     return [=](int64_t output_size,
                int64_t index_size,
                int64_t uncompressed_data_size,
@@ -1391,7 +1383,8 @@ GenerateEmbeddingSpMDMNBitRowWiseSparse(
 
 #define INSTANTIATE_SPMDM_OUT_T(INDEX_TYPE, OFFSET_TYPE)                   \
   INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, float)           \
-  INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, uint16_t)        \
+  INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, float16)         \
+  INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, bfloat16)        \
   INSTANTIATE_SPMDM_THREAD_LOCAL(INDEX_TYPE, OFFSET_TYPE, uint8_t)         \
   template FBGEMM_API typename EmbeddingSpMDMRowWiseSparseKernelSignature< \
       uint8_t,                                                             \

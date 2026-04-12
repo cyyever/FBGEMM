@@ -8,12 +8,25 @@
 
 #pragma once
 
+#include <concepts>
 #include <cstdint>
 
 namespace fbgemm {
 
-using float16 = std::uint16_t;
-using bfloat16 = std::uint16_t;
+struct float16 {
+  uint16_t val;
+};
+
+struct bfloat16 {
+  uint16_t val;
+};
+
+static_assert(sizeof(float16) == 2);
+static_assert(sizeof(bfloat16) == 2);
+
+// Half-precision float concept
+template <typename T>
+concept FbgemmHalfType = std::same_as<T, float16> || std::same_as<T, bfloat16>;
 
 constexpr int64_t round_up(int64_t val, int64_t unit) {
   return (val + unit - 1) / unit * unit;

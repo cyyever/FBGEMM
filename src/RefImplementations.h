@@ -238,9 +238,7 @@ FBGEMM_API bool EmbeddingSpMDM_ref(
     std::int64_t output_stride = -1,
     std::int64_t input_stride = -1,
     bool scale_bias_last = true,
-    bool no_bag = false,
-    bool is_bf16_out = false,
-    bool is_bf16_in = false);
+    bool no_bag = false);
 
 template <
     typename IndexType = std::int64_t,
@@ -263,7 +261,6 @@ FBGEMM_API bool EmbeddingSpMDMNBit_ref(
     std::int64_t output_stride = -1,
     std::int64_t input_stride = -1,
     const bool scale_bias_last = true,
-    const bool is_bf16_out = false,
     const bool no_bag = false,
     int output_bit_rate = -1);
 
@@ -287,8 +284,7 @@ bool EmbeddingSpMDMFP8_ref(
     int64_t output_stride = -1,
     int64_t input_stride = -1,
     int exponent_bits = 4,
-    int exponent_bias = 7,
-    bool is_bf16_out = false);
+    int exponent_bias = 7);
 
 template <
     typename InType = std::uint8_t,
@@ -414,21 +410,5 @@ FBGEMM_API void compressed_indices_remap_ref(
     IndexType* out_indices,
     IndexType* out_offsets,
     float* out_weights);
-
-template <typename T>
-float convert_to_float_ref(T src, bool is_bf16 = false) {
-  if constexpr (std::is_same_v<T, uint16_t>) {
-    return is_bf16 ? cpu_bf162float(src) : cpu_half2float(src);
-  }
-  return src;
-}
-
-template <typename T>
-T convert_from_float_ref(float src, bool is_bf16 = false) {
-  if constexpr (std::is_same_v<T, uint16_t>) {
-    return is_bf16 ? cpu_float2bfloat16(src) : cpu_float2half_rn(src);
-  }
-  return src;
-}
 
 } // namespace fbgemm

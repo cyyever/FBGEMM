@@ -1564,6 +1564,9 @@ static inline float halfToFloat(uint16_t val) {
   return _cvtsh_ss(val);
 #endif
 }
+static inline float halfToFloat(float16 h) {
+  return halfToFloat(h.val);
+}
 
 template <typename InputType, int BIT_RATE>
 void FloatOrHalfToFusedNBitRowwiseQuantizedSBHalfAvx2(

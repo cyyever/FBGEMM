@@ -37,9 +37,7 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
         int64_t output_stride,
         int64_t input_stride,
         bool scale_bias_last,
-        bool no_bag,
-        bool is_bf16_out,
-        bool is_bf16_in);
+        bool no_bag);
 
 template <typename IndexType, typename OffsetType, typename OutType>
 typename EmbeddingSpMDMKernelSignature<
@@ -58,9 +56,8 @@ GenerateEmbeddingSpMDMNBitWithStrides_autovec(
     int64_t output_stride,
     int64_t input_stride,
     bool scale_bias_last,
-    bool is_bf16_out,
-    bool no_bag,
-    int output_bit_rate);
+    bool no_bag = false,
+    int output_bit_rate = -1);
 
 template <typename IndexType, typename OffsetType, typename OutType>
 typename EmbeddingSpMDMKernelSignature<
@@ -76,8 +73,7 @@ GenerateEmbeddingSpMDMFP8WithStrides_autovec(
     int64_t output_stride,
     int64_t input_stride,
     int exponent_bits,
-    int exponent_bias,
-    bool is_bf16_out);
+    int exponent_bias);
 
 template <typename InType, typename IndexType, typename OffsetType>
 typename EmbeddingSpMDMRowWiseSparseKernelSignature<
@@ -108,4 +104,4 @@ GenerateEmbeddingSpMDMNBitRowWiseSparse_autovec(
 
 } // namespace fbgemm
 
-#endif // #ifdef __linux__
+#endif // __linux__
