@@ -776,6 +776,100 @@ INSTANTIATE_QuantizationNeonFunctionsNBits(float16, 8)
 // clang-format on
 #undef INSTANTIATE_QuantizationNeonFunctionsNBits
 
+#else // !HAVE_SVE — plain NEON fallback for non-SVE aarch64 (e.g. Apple Silicon)
+
+template <typename OutputType>
+void Fused8BitRowwiseQuantizedSBFloatToFloatOrHalfNeon(
+    const std::uint8_t* input,
+    size_t input_rows,
+    int input_columns,
+    OutputType* output) {
+  constexpr bool is_float = std::is_same_v<OutputType, float>;
+  const auto output_columns =
+      std::max<int>(input_columns - 2 * sizeof(float), 0);
+
+  for (size_t row = 0; row < input_rows; ++row) {
+    const auto *input_row = input + row * input_columns;
+    std::array<float, 2> scale_bias;
+    memcpy(scale_bias.data(), input_row + output_columns, sizeof(scale_bias));
+    const auto [scale, bias] = scale_bias;
+
+    const auto scale_v = vdupq_n_f32(scale);
+    const auto bias_v = vdupq_n_f32(bias);
+    auto *output_row = output + row * output_columns;
+
+    int col = 0;
+    // Process 16 elements per iteration for better ILP
+    for (; col + 16 <= output_columns; col += 16) {
+      const auto in_u8 = vld1q_u8(input_row + col);
+      const auto in_u16_lo = vmovl_u8(vget_low_u8(in_u8));
+      const auto in_u16_hi = vmovl_high_u8(in_u8);
+
+      const auto f0 = vfmaq_f32(
+          bias_v, vcvtq_f32_u32(vmovl_u16(vget_low_u16(in_u16_lo))), scale_v);
+      const auto f1 =
+          vfmaq_f32(bias_v, vcvtq_f32_u32(vmovl_high_u16(in_u16_lo)), scale_v);
+      const auto f2 = vfmaq_f32(
+          bias_v, vcvtq_f32_u32(vmovl_u16(vget_low_u16(in_u16_hi))), scale_v);
+      const auto f3 =
+          vfmaq_f32(bias_v, vcvtq_f32_u32(vmovl_high_u16(in_u16_hi)), scale_v);
+
+      if constexpr (is_float) {
+        vst1q_f32(output_row + col, f0);
+        vst1q_f32(output_row + col + 4, f1);
+        vst1q_f32(output_row + col + 8, f2);
+        vst1q_f32(output_row + col + 12, f3);
+      } else {
+        auto *out = reinterpret_cast<float16_t *>(output_row + col);
+        vst1_f16(out, vcvt_f16_f32(f0));
+        vst1_f16(out + 4, vcvt_f16_f32(f1));
+        vst1_f16(out + 8, vcvt_f16_f32(f2));
+        vst1_f16(out + 12, vcvt_f16_f32(f3));
+      }
+    }
+
+    // Process remaining 8 elements
+    for (; col + 8 <= output_columns; col += 8) {
+      const auto in_u16 = vmovl_u8(vld1_u8(input_row + col));
+
+      const auto out_lo = vfmaq_f32(
+          bias_v, vcvtq_f32_u32(vmovl_u16(vget_low_u16(in_u16))), scale_v);
+      const auto out_hi =
+          vfmaq_f32(bias_v, vcvtq_f32_u32(vmovl_high_u16(in_u16)), scale_v);
+
+      if constexpr (is_float) {
+        vst1q_f32(output_row + col, out_lo);
+        vst1q_f32(output_row + col + 4, out_hi);
+      } else {
+        auto *out = reinterpret_cast<float16_t *>(output_row + col);
+        vst1_f16(out, vcvt_f16_f32(out_lo));
+        vst1_f16(out + 4, vcvt_f16_f32(out_hi));
+      }
+    }
+
+    for (; col < output_columns; ++col) {
+      const auto val =
+          static_cast<float>(double(input_row[col]) * scale + double(bias));
+      if constexpr (is_float) {
+        output_row[col] = val;
+      } else {
+        output_row[col] = cpu_float2half_rn(val);
+      }
+    }
+  }
+}
+
+template void Fused8BitRowwiseQuantizedSBFloatToFloatOrHalfNeon<float>(
+    const std::uint8_t* input,
+    size_t input_rows,
+    int input_columns,
+    float* output);
+template void Fused8BitRowwiseQuantizedSBFloatToFloatOrHalfNeon<float16>(
+    const std::uint8_t* input,
+    size_t input_rows,
+    int input_columns,
+    float16* output);
+
 #endif // HAVE_SVE
 
 } // namespace fbgemm

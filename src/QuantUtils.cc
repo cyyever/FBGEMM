@@ -904,7 +904,7 @@ void Fused8BitRowwiseQuantizedSBFloatToFloatOrHalf(
     OutputType* output,
     const bool scale_bias_last [[maybe_unused]],
     const bool quant_padding_float_type [[maybe_unused]]) {
-#if HAVE_SVE
+#if defined(__aarch64__)
   Fused8BitRowwiseQuantizedSBFloatToFloatOrHalfNeon<OutputType>(
       input, input_rows, input_columns, output);
 #else

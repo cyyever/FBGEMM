@@ -71,11 +71,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn({4, 8, 16, 20, 28, 32, 64, 84})));
 
 INSTANTIATE_TEST_SUITE_P(
-    InstantiationName,
-    EmbeddingQuantizeSBFloatTest,
-    ::testing::Combine(
-        ::testing::ValuesIn({1, 2, 3}),
-        ::testing::ValuesIn({1, 2, 5, 8, 9, 16, 20, 28, 32, 33, 64, 65})));
+    InstantiationName, EmbeddingQuantizeSBFloatTest,
+    ::testing::Combine(::testing::ValuesIn({1, 2, 3}),
+                       ::testing::ValuesIn({0, 1, 2, 5, 7, 8, 9, 16, 20, 28, 32,
+                                            33, 64, 65})));
 
 template <typename T, layout_t LT>
 static void ref_impl(
