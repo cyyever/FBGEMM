@@ -1305,26 +1305,26 @@ struct FixedParameter {
 struct VariableParameter {};
 
 template <typename T>
-ALWAYS_INLINE constexpr FixedParameter<T> fixed(T value) {
+constexpr FixedParameter<T> fixed(T value) {
   return FixedParameter<T>{value};
 }
 constexpr VariableParameter var = VariableParameter();
 
 template <typename T>
-ALWAYS_INLINE bool match(VariableParameter /*unused*/, T /*unused*/) {
+constexpr bool match(VariableParameter /*unused*/, T /*unused*/) {
   return true;
 }
 template <typename T>
-ALWAYS_INLINE bool match(FixedParameter<T> fixed_parameter, T value) {
+constexpr bool match(FixedParameter<T> fixed_parameter, T value) {
   return fixed_parameter.value == value;
 }
 
 template <typename T>
-ALWAYS_INLINE T specialize(VariableParameter /*unused*/, T value) {
+constexpr T specialize(VariableParameter /*unused*/, T value) {
   return value;
 }
 template <typename T>
-ALWAYS_INLINE T specialize(FixedParameter<T> fixed_parameter, T /*unused*/) {
+constexpr T specialize(FixedParameter<T> fixed_parameter, T /*unused*/) {
   return fixed_parameter.value;
 }
 } // namespace specialization_helper
