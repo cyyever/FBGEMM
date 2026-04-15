@@ -9,7 +9,7 @@
 
 import dataclasses
 import json
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
@@ -34,9 +34,9 @@ class IndicesParams:
     # zipf_s is synonymous with alpha in the literature
     zipf_s: float
     # [Optional] dtype for indices tensor
-    index_dtype: Optional[torch.dtype] = None
+    index_dtype: torch.dtype | None = None
     # [Optional] dtype for offsets tensor
-    offset_dtype: Optional[torch.dtype] = None
+    offset_dtype: torch.dtype | None = None
 
     @classmethod
     # pyre-ignore [3]
@@ -93,13 +93,13 @@ class BatchParams:
     # Target batch size, i.e. number of batch lookups per table
     B: int
     # [Optional] Standard deviation of B (for variable batch size configuration)
-    sigma_B: Optional[int] = None
+    sigma_B: int | None = None
     # [Optional] Distribution of batch sizes (normal, uniform)
-    vbe_distribution: Optional[str] = "normal"
+    vbe_distribution: str | None = "normal"
     # Number of ranks for variable batch size generation
-    vbe_num_ranks: Optional[int] = None
+    vbe_num_ranks: int | None = None
     # List of target batch sizes, i.e. number of batch lookups per feature
-    Bs: Optional[list[int]] = None
+    Bs: list[int] | None = None
 
     @classmethod
     # pyre-ignore [3]
@@ -139,11 +139,11 @@ class PoolingParams:
     # Target bag size, i.e. pooling factor, or number of indices per batch lookup
     L: int
     # [Optional] Standard deviation of L (for variable bag size configuration)
-    sigma_L: Optional[int] = None
+    sigma_L: int | None = None
     # [Optional] Distribution of embedding sequence lengths (normal, uniform)
-    length_distribution: Optional[str] = "normal"
+    length_distribution: str | None = "normal"
     # [Optional] List of target bag sizes, i.e. pooling factors per batch
-    Ls: Optional[list[float]] = None
+    Ls: list[float] | None = None
 
     @classmethod
     # pyre-ignore [3]

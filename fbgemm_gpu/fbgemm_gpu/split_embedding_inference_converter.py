@@ -10,7 +10,7 @@
 
 import logging
 import math
-from typing import cast, Optional
+from typing import cast
 
 import torch
 
@@ -39,9 +39,9 @@ class SplitEmbInferenceConverter:
     def __init__(
         self,
         quantize_type: SparseType,
-        pruning_ratio: Optional[float],
+        pruning_ratio: float | None,
         use_array_for_index_remapping: bool = True,
-        quantization_config: Optional[QuantizationConfig] = None,
+        quantization_config: QuantizationConfig | None = None,
     ):
         self.quantize_type = quantize_type
         # TODO(yingz): Change the pruning ratio to per-table settings.
@@ -76,7 +76,7 @@ class SplitEmbInferenceConverter:
         idx: int,
         num_rows: int,
         module: SplitTableBatchedEmbeddingBagsCodegen,
-    ) -> tuple[Tensor, Optional[Tensor]]:
+    ) -> tuple[Tensor, Tensor | None]:
         # TODO(yingz): Avoid DtoH / HtoD overhead.
         weights = module.split_embedding_weights()[idx].cpu()
         if self.pruning_ratio is None:
@@ -101,7 +101,7 @@ class SplitEmbInferenceConverter:
 
     def _quantize_embs(
         self, weight: Tensor, weight_ty: SparseType
-    ) -> tuple[Tensor, Optional[Tensor]]:
+    ) -> tuple[Tensor, Tensor | None]:
         fp8_quant_config = cast(FP8QuantizationConfig, self.quantization_config)
         return quantize_embs(weight, weight_ty, fp8_quant_config)
 

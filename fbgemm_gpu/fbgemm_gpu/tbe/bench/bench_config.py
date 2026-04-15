@@ -10,7 +10,7 @@
 import dataclasses
 import json
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import click
 
@@ -28,7 +28,7 @@ class TBEBenchmarkingConfig:
     # If set, trace will be exported to the path specified in trace_url
     export_trace: bool
     # The path for exporting the trace
-    trace_url: Optional[str]
+    trace_url: str | None
     # If set and export_trace is true, the benchmark will upload performance data from the trace to Scuba
     upload_perf_data: bool
 
