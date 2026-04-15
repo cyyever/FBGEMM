@@ -42,6 +42,8 @@ def get_n_rand_num_summing_to_k(n: int, k: int) -> npt.NDArray:
     return np.random.multinomial(k, np.ones(n) / n, size=1)[0]
 
 
+
+
 class PackedSegmentsTest(unittest.TestCase):
     def _pack_segments_ref(
         self,
@@ -172,7 +174,9 @@ class PackedSegmentsTest(unittest.TestCase):
             pack_segments_fun_v2 = torch.ops.fbgemm.pack_segments_v2
 
             if torch_compile:
-                pack_segments_fun_v2 = torch.compile(pack_segments_fun_v2, dynamic=True)
+                pack_segments_fun_v2 = torch.compile(
+                    pack_segments_fun_v2, dynamic=True
+                )
 
             packed_cuda_v2, _ = pack_segments_fun_v2(
                 t_in=input_data.cuda(),
