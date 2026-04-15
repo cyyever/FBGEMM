@@ -11,7 +11,6 @@
 
 import random
 import unittest
-from typing import Optional
 
 import hypothesis.strategies as st
 import torch
@@ -1583,7 +1582,7 @@ class BlockBucketizeTest(unittest.TestCase):
     @settings(verbosity=Verbosity.verbose, max_examples=16, deadline=None)
     def test_block_bucketize_sparse_features_with_variable_batch_sizes(
         self,
-        index_type: Optional[torch.dtype],
+        index_type: torch.dtype | None,
         has_weight: bool,
         bucketize_pos: bool,
         sequence: bool,
@@ -1675,7 +1674,7 @@ class BlockBucketizeTest(unittest.TestCase):
     @settings(verbosity=Verbosity.verbose, max_examples=16, deadline=None)
     def test_block_bucketize_sparse_features_with_block_bucketize_pos(
         self,
-        index_type: Optional[torch.dtype],
+        index_type: torch.dtype | None,
         has_weight: bool,
         bucketize_pos: bool,
         sequence: bool,
