@@ -9,7 +9,6 @@
 import functools
 import inspect
 import warnings
-from typing import Optional
 
 import torch
 import triton
@@ -941,12 +940,12 @@ def _grouped_gemm(
     x: torch.Tensor,
     w: torch.Tensor,
     m_sizes: torch.Tensor,
-    x_scale: Optional[torch.Tensor],
-    w_scale: Optional[torch.Tensor],
+    x_scale: torch.Tensor | None,
+    w_scale: torch.Tensor | None,
     use_fast_accum: bool,
     use_warp_specialization: bool,
-    output_tensor: Optional[torch.Tensor],
-    scatter_add_indices: Optional[torch.Tensor],
+    output_tensor: torch.Tensor | None,
+    scatter_add_indices: torch.Tensor | None,
 ) -> torch.Tensor:
 
     USE_TMA_LOAD = not torch.version.hip
@@ -1041,7 +1040,7 @@ def _grouped_gemm(
 
     if USE_TMA_STORE:
 
-        def alloc_fn(size: int, alignment: int, stream: Optional[int]):
+        def alloc_fn(size: int, alignment: int, stream: int | None):
             return torch.empty(size, device="cuda", dtype=torch.int8)
 
         triton.set_allocator(alloc_fn)
@@ -1148,8 +1147,8 @@ def grouped_gemm(
     use_fast_accum: bool = True,
     *,
     _use_warp_specialization: bool = True,
-    _output_tensor: Optional[torch.Tensor] = None,
-    _scatter_add_indices: Optional[torch.Tensor] = None,
+    _output_tensor: torch.Tensor | None = None,
+    _scatter_add_indices: torch.Tensor | None = None,
 ) -> torch.Tensor:
     return _grouped_gemm(
         x=x,
@@ -1173,8 +1172,8 @@ def grouped_gemm_fp8_rowwise(
     use_fast_accum: bool = True,
     *,
     _use_warp_specialization: bool = True,
-    _output_tensor: Optional[torch.Tensor] = None,
-    _scatter_add_indices: Optional[torch.Tensor] = None,
+    _output_tensor: torch.Tensor | None = None,
+    _scatter_add_indices: torch.Tensor | None = None,
 ) -> torch.Tensor:
     return _grouped_gemm(
         x=x,
