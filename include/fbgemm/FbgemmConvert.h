@@ -150,6 +150,22 @@ FBGEMM_API void FloatToFloat16_sve2(
     size_t size,
     bool do_clip = false);
 
+#if defined(__aarch64__)
+/**
+ * @brief NEON implementation to convert fp32 numbers to fp16 numbers.
+ */
+void FloatToFloat16_neon(
+    const float* src,
+    float16* dst,
+    size_t size,
+    bool do_clip = false);
+
+/**
+ * @brief NEON implementation to convert fp16 numbers to fp32 numbers.
+ */
+void Float16ToFloat_neon(const float16* src, float* dst, size_t size);
+#endif
+
 #if !defined(__aarch64__)
 /**
  * @brief AVX2 implementation to convert fp16 numbers to fp32 numbers.

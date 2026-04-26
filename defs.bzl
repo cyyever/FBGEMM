@@ -242,6 +242,7 @@ def get_fbgemm_inline_neon_srcs(msvc = False, buck = False):
         "src/KleidiAIFP16UKernelsNeon.cc",
         "src/fp32/KleidiAIFP32UKernelsNeon.cc",
         "src/QuantUtilsNeon.cc",
+        "src/FbgemmFloat16ConvertNeon.cc",
     ]
     if buck:
         return select({

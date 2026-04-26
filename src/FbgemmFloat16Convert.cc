@@ -23,7 +23,12 @@ void FloatToFloat16_simd(
     bool do_clip) {
   // Run time CPU detection
   if (cpuinfo_initialize()) {
-#if !defined(__aarch64__)
+#if defined(__aarch64__)
+    if (fbgemmHasArmNeonSupport()) {
+      FloatToFloat16_neon(src, dst, size, do_clip);
+      return;
+    }
+#else
     if (fbgemmHasAvx512Support()) {
       FloatToFloat16_avx512(src, dst, size, do_clip);
     } else if (fbgemmHasAvx2Support()) {
@@ -42,7 +47,12 @@ void FloatToFloat16_simd(
 void Float16ToFloat_simd(const float16* src, float* dst, size_t size) {
   // Run time CPU detection
   if (cpuinfo_initialize()) {
-#if !defined(__aarch64__)
+#if defined(__aarch64__)
+    if (fbgemmHasArmNeonSupport()) {
+      Float16ToFloat_neon(src, dst, size);
+      return;
+    }
+#else
     if (fbgemmHasAvx512Support()) {
       Float16ToFloat_avx512(src, dst, size);
     } else if (fbgemmHasAvx2Support()) {
