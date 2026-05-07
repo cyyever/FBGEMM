@@ -108,14 +108,15 @@ __global__ void quantize_float_to_mx4_kernel(
     const uint32_t smem_stride) {
   const auto linear_group_id = (blockIdx.x * blockDim.y) + threadIdx.y;
   const auto linear_tid = linear_group_id * group_size + threadIdx.x;
-  if (linear_tid >= total_elems)
-    return;
+  // Use a flag instead of early return so all threads reach __syncthreads(),
+  // which is required for correctness on ROCm/HIP and pre-Volta NVIDIA GPUs.
+  const bool is_valid = linear_tid < total_elems;
 
   // MX4 values
   constexpr int scale_bits = 8;
   constexpr int elem_emax = 2;
 
-  const T elem = input[linear_tid];
+  const T elem = is_valid ? input[linear_tid] : T(0);
 
   extern __shared__ __align__(16) float smem[];
   const uint32_t group_offset_in_block = threadIdx.y * smem_stride;
@@ -200,7 +201,7 @@ __global__ void quantize_float_to_mx4_kernel(
   const auto is_even_tid = threadIdx.x % 2 == 0;
 
   // even thread work on the left side
-  if (is_even_tid) {
+  if (is_valid && is_even_tid) {
     // the 4 bits are on the rightmost, need to shift 4 bit
     // this becomes `xxxx 0000`
     *stored_8bit = (quantized_val << 4);
@@ -208,14 +209,14 @@ __global__ void quantize_float_to_mx4_kernel(
   __syncthreads();
 
   // odd threads work on the right side (position 0-3)
-  if (!is_even_tid) {
+  if (is_valid && !is_even_tid) {
     // 4 bits are already on the rightmost, so just `bitwise OR` to combine
     *stored_8bit |= quantized_val;
   }
   __syncthreads();
 
   // Let each thread write 1 byte of output data
-  if (threadIdx.x < half_group_size) {
+  if (is_valid && threadIdx.x < half_group_size) {
     // write data output using uint8_t (1 bytes)
 
     uint8_t* smem_ptr = reinterpret_cast<uint8_t*>(smem_base);
