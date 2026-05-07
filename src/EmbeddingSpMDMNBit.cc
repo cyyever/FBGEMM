@@ -407,7 +407,9 @@ GenEmbeddingSpMDMNBitLookup<
           // AVX512 doesn't need to use vector register for masking
           --unroll_factor;
           mask_vreg = x86::ymm(unroll_factor);
-          if (remainder > 1 && std::is_same_v<outType, uint16_t>) {
+          if (remainder > 1 &&
+              (std::is_same_v<outType, uint16_t> ||
+               std::is_same_v<outType, float16>)) {
             --unroll_factor;
             mask_fp16_vreg = x86::xmm(unroll_factor);
           }
@@ -434,7 +436,9 @@ GenEmbeddingSpMDMNBitLookup<
                 mask_vreg,
                 x86::ymmword_ptr(
                     scratchReg1_, (vlen - remainder) % vlen * sizeof(int32_t)));
-            if constexpr (std::is_same_v<outType, uint16_t>) {
+            if constexpr (
+                std::is_same_v<outType, uint16_t> ||
+                std::is_same_v<outType, float16>) {
               if (remainder > 1) {
                 a->vmovups(
                     mask_fp16_vreg,
@@ -940,7 +944,8 @@ GenEmbeddingSpMDMNBitLookup<
         a->bind(exit);
 
         if (remainder && instSet == inst_set_t::avx2 &&
-            std::is_same_v<outType, uint16_t>) {
+            (std::is_same_v<outType, uint16_t> ||
+             std::is_same_v<outType, float16>)) {
           a->lea(x86::rsp, x86::ymmword_ptr(x86::rsp, vlen * sizeof(int32_t)));
         }
 
@@ -1105,7 +1110,9 @@ typename EmbeddingSpMDMKernelSignature<uint8_t, indxType, offsetType, outType>::
 #endif // CPUINFO_ARCH_X86 || CPUINFO_ARCH_X86_64
 
 #if HAVE_SVE
-  if constexpr (std::is_same_v<outType, uint16_t>) {
+  if constexpr (
+      std::is_same_v<outType, uint16_t> ||
+      std::is_same_v<outType, float16>) {
     // FP16 accumulation (eps ~= 9.77e-4) trades precision for
     // throughput: ~0.5-1% relative error vs FP32 at typical bag
     // sizes (L=100), worst-case O(L * eps_fp16) ~= 10%.

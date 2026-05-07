@@ -192,8 +192,13 @@ GenEmbeddingSpMDMLookup<
                 outType,
                 ROWWISE_SPARSE>::jit_embedding_kernel {
         constexpr bool is_8bit_in = std::is_same_v<inType, uint8_t>;
-        constexpr bool is_16bit_in = std::is_same_v<inType, uint16_t>;
-        constexpr bool is_16bit_out = std::is_same_v<outType, uint16_t>;
+        // float16 is now a distinct type from uint16_t, but both denote a
+        // 16-bit input/output that shares the same fp16/bf16 codegen below
+        // (fp16 vs bf16 is selected via the is_bf16_in/is_bf16_out flags).
+        constexpr bool is_16bit_in =
+            std::is_same_v<inType, uint16_t> || std::is_same_v<inType, float16>;
+        constexpr bool is_16bit_out = std::is_same_v<outType, uint16_t> ||
+            std::is_same_v<outType, float16>;
         bool is_fp16_in = is_16bit_in && !is_bf16_in;
         bool is_fp16_out = is_16bit_out && !is_bf16_out;
 
@@ -989,7 +994,9 @@ typename EmbeddingSpMDMKernelSignature<inType, indxType, offsetType, outType>::
         bool is_bf16_in /*=false*/) {
   bool use_avx [[maybe_unused]] = true;
   if constexpr (
-      std::is_same_v<inType, uint16_t> && std::is_same_v<outType, float>) {
+      (std::is_same_v<inType, uint16_t> ||
+       std::is_same_v<inType, float16>) &&
+      std::is_same_v<outType, float>) {
     if (is_bf16_in) {
       use_avx = false;
     }
@@ -1013,7 +1020,8 @@ typename EmbeddingSpMDMKernelSignature<inType, indxType, offsetType, outType>::
       throw std::runtime_error("Failed to initialize cpuinfo!");
     }
     const inst_set_t isa = fbgemmInstructionSet();
-    if ((std::is_same_v<inType, float> || std::is_same_v<inType, uint16_t>) &&
+    if ((std::is_same_v<inType, float> || std::is_same_v<inType, uint16_t> ||
+         std::is_same_v<inType, float16>) &&
         block_size == 1 && isYmm(isa) && output_stride == block_size &&
         input_stride == block_size && std::is_same_v<outType, float> &&
         !is_asmjit_disabled()) {
@@ -1140,7 +1148,9 @@ typename EmbeddingSpMDMKernelSignature<inType, indxType, offsetType, outType>::
                  const float*
                      weights, // optional, can be null for non-weighted sum
                  outType* out) {
-        if constexpr (std::is_same_v<outType, uint16_t>) {
+        if constexpr (
+            std::is_same_v<outType, uint16_t> ||
+            std::is_same_v<outType, float16>) {
           // FP16 accumulation (eps ~= 9.77e-4) trades precision for
           // throughput: ~0.5-1% relative error vs FP32 at typical bag
           // sizes (L=100), worst-case O(L * eps_fp16) ~= 10%.
@@ -1198,7 +1208,9 @@ typename EmbeddingSpMDMKernelSignature<inType, indxType, offsetType, outType>::
                  const float* weights, // optional, can be null for
                                        // non-weighted sum
                  outType* out) {
-        if constexpr (std::is_same_v<outType, uint16_t>) {
+        if constexpr (
+            std::is_same_v<outType, uint16_t> ||
+            std::is_same_v<outType, float16>) {
           // FP16 accumulation (eps ~= 9.77e-4) trades precision for
           // throughput: ~0.5-1% relative error vs FP32 at typical bag
           // sizes (L=100), worst-case O(L * eps_fp16) ~= 10%.
