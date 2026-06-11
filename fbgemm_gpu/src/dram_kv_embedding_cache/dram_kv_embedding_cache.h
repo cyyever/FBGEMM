@@ -711,6 +711,12 @@ class DramKVEmbeddingCache : public kv_db::EmbeddingKVDB {
                         std::vector<std::tuple<int64_t, int64_t>> miss_info;
                         hit_info.reserve(indexes.size() / 2);
                         miss_info.reserve(indexes.size() / 10);
+                        // feature evict configured and active (hoisted)
+                        const bool evict_enabled =
+                            feature_evict_config_.has_value() &&
+                            feature_evict_config_.value()->trigger_mode_ !=
+                                EvictTriggerMode::DISABLED &&
+                            feature_evict_;
                         auto rlmap = kv_store_.by(shard_id).rlock();
                         for (const auto& idx : indexes) {
                           auto id = int64_t(indices_data_ptr[idx]);
@@ -736,10 +742,7 @@ class DramKVEmbeddingCache : public kv_db::EmbeddingKVDB {
                               weights_data_ptr + (tensor_offset + 1) * stride,
                               data_ptr);
                           // update provided ts for existing blocks
-                          if (feature_evict_config_.has_value() &&
-                              feature_evict_config_.value()->trigger_mode_ !=
-                                  EvictTriggerMode::DISABLED &&
-                              feature_evict_ && inplace_update_ts.has_value()) {
+                          if (evict_enabled && inplace_update_ts.has_value()) {
                             FixedBlockPool::set_timestamp(
                                 block, inplace_update_ts.value());
                           }
@@ -766,10 +769,7 @@ class DramKVEmbeddingCache : public kv_db::EmbeddingKVDB {
                               data_ptr);
 
                           // update provided ts for new allocated blocks
-                          if (feature_evict_config_.has_value() &&
-                              feature_evict_config_.value()->trigger_mode_ !=
-                                  EvictTriggerMode::DISABLED &&
-                              feature_evict_) {
+                          if (evict_enabled) {
                             if (inplace_update_ts.has_value()) {
                               FixedBlockPool::set_timestamp(
                                   block, inplace_update_ts.value());
