@@ -6,6 +6,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+#include <bit>
+
 #include <ATen/ATen.h>
 #include <ATen/core/op_registration/op_registration.h>
 #include <fbgemm_gpu/sparse_ops.h>
@@ -24,6 +26,20 @@ using Tensor = at::Tensor;
 ///
 
 namespace fbgemm_gpu {
+
+// Map fbgemm types to PyTorch types for typed tensor access.
+// fbgemm::float16 is uint16_t which PyTorch doesn't recognize;
+// at::Half has the same layout.
+template <typename T>
+struct to_pytorch_type {
+  using type = T;
+};
+template <>
+struct to_pytorch_type<fbgemm::float16> {
+  using type = at::Half;
+};
+template <typename T>
+using to_pytorch_type_t = typename to_pytorch_type<T>::type;
 
 template <typename input_t>
 Tensor& _float_to_fused8bitrowwise_cpu_out_t(
@@ -46,9 +62,8 @@ Tensor& _float_to_fused8bitrowwise_cpu_out_t(
   output_dims[last_dim] = output_columns;
   at::native::resize_(output, output_dims, std::nullopt);
 
-  const auto input_data = static_cast<const input_t*>(
-      input.const_data_ptr()); // input.const_data_ptr<input_t>(); -> Yields
-                               // unresolved data_ptr symbol.
+  const auto* input_data = std::bit_cast<const input_t*>(
+      input.const_data_ptr<to_pytorch_type_t<input_t>>());
   fbgemm::FloatOrHalfToFused8BitRowwiseQuantizedSBFloat<input_t>(
       input_data, nrows, ncols, output.mutable_data_ptr<uint8_t>());
 
@@ -121,9 +136,8 @@ Tensor _float_to_fusednbitrowwise_cpu(
       {nrows, output_columns},
       input.options().dtype(at::kByte)); // at::kBytes for uint8_t
 
-  const auto input_data = static_cast<const input_t*>(
-      input.const_data_ptr()); // input.const_data_ptr<input_t>(); -> Yields
-                               // unresolved data_ptr symbol.
+  const auto* input_data = std::bit_cast<const input_t*>(
+      input.const_data_ptr<to_pytorch_type_t<input_t>>());
   fbgemm::FloatOrHalfToFusedNBitRowwiseQuantizedSBHalf<input_t>(
       bit_rate,
       input_data,
@@ -501,8 +515,8 @@ static Tensor float_or_half_to_fusednbitrowwise_cpu_with_rowwise_min_max(
           output = _float_to_fusednbitrowwise_cpu<float>(
               input, bit_rate, rowwise_min_max_data);
         } else { // scalar_t = at::Half
-          const auto rowwise_min_max_data = static_cast<const fbgemm::float16*>(
-              rowwise_min_max_contig->const_data_ptr());
+          const auto* rowwise_min_max_data = std::bit_cast<const fbgemm::float16*>(
+              rowwise_min_max_contig->const_data_ptr<at::Half>());
           output = _float_to_fusednbitrowwise_cpu<fbgemm::float16>(
               input, bit_rate, rowwise_min_max_data);
         }
