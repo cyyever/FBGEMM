@@ -110,6 +110,7 @@ Tensor _float_to_fusednbitrowwise_cpu(
   const auto input_sizes = input.sizes();
   const int64_t nrows = input_sizes[0];
   const int32_t ncols = input_sizes[1];
+  TORCH_CHECK(bit_rate > 0, "bit_rate must be positive, got ", bit_rate);
   const int32_t num_elem_per_byte = 8 / bit_rate;
   TORCH_CHECK(
       ncols % (2 * num_elem_per_byte) == 0,
@@ -146,6 +147,7 @@ Tensor _fusednbitrowwise_to_float_cpu(
   const int64_t nrows = input_sizes[0];
   // Here we want the number of bytes in a row
   const int32_t ncols = nbit_elems_to_bytes(input);
+  TORCH_CHECK(bit_rate > 0, "bit_rate must be positive, got ", bit_rate);
   const int32_t num_elem_per_byte = 8 / bit_rate;
   const int32_t output_columns =
       (ncols - 2 * sizeof(at::Half)) * num_elem_per_byte;
@@ -183,6 +185,7 @@ Tensor _fusednbitrowwise_sbfront_to_float_or_half_cpu(
   const int64_t nrows = input_sizes[0];
   // Here we want the number of bytes in a row
   const int32_t ncols = nbit_elems_to_bytes(input);
+  TORCH_CHECK(bit_rate > 0, "bit_rate must be positive, got ", bit_rate);
   const int32_t num_elem_per_byte = 8 / bit_rate;
   const int32_t output_columns =
       (ncols - 2 * sizeof(at::Half)) * num_elem_per_byte;

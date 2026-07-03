@@ -265,6 +265,7 @@ class KeyedJaggedIndexSelectDim1GPUOp
     device_guard.set_index(values.get_device());
 
     const auto batch_size = _batch_size.guard_int(__FILE__, __LINE__);
+    TORCH_CHECK(batch_size > 0, "batch_size must be positive, got ", batch_size);
     const int num_batches = lengths.numel() / batch_size;
     const int64_t num_output_lengths =
         static_cast<int64_t>(num_batches) * indices.numel();

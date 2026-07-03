@@ -605,6 +605,7 @@ std::tuple<Tensor, Tensor> jagged_hash_size_cumsum_cuda(
     const Tensor& offsets,
     const Tensor& indices,
     const int64_t batch_size) {
+  TORCH_CHECK(batch_size > 0, "batch_size must be positive, got ", batch_size);
   const auto T = (offsets.size(0) - 1) / batch_size;
   Tensor hash_size = at::zeros({T}, offsets.options());
 

@@ -2151,7 +2151,7 @@ class DramKVEmbeddingCache : public kv_db::EmbeddingKVDB {
               : *(count.const_data_ptr<int32_t>());
           auto indices_data_ptr = indices.data_ptr<index_t>();
           // There could be negative indices, which we should skipp
-          for (int i = 0; i < conv_count; i++) {
+          for (int64_t i = 0; i < conv_count; i++) {
             auto index = int64_t(indices_data_ptr[i]);
             if (index < 0) {
               continue;

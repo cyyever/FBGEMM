@@ -78,6 +78,7 @@ Tensor fusednbitrowwise_to_float_or_half_meta(
   const at::SymInt& nrows = input_sizes[0];
   // Here we want the number of bytes in a row
   const at::SymInt ncols = nbit_elems_to_bytes_meta(input);
+  TORCH_CHECK(bit_rate > 0, "bit_rate must be positive, got ", bit_rate);
   const at::SymInt num_elem_per_byte = 8 / bit_rate;
   const at::SymInt output_columns =
       (ncols - 2 * sizeof(at::Half)) * num_elem_per_byte;

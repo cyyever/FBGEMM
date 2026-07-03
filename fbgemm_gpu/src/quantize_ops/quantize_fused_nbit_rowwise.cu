@@ -26,8 +26,8 @@ __global__ inline void _float_to_fusednbitrowwise_cuda_kernel(
   const int output_columns =
       (ncols + num_elem_per_byte - 1) / num_elem_per_byte + 2 * sizeof(__half);
 
-  int row = (int)blockIdx.x * blockDim.x + threadIdx.x;
-  const auto row_incre = blockDim.x * gridDim.x;
+  int64_t row = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t row_incre = (int64_t)blockDim.x * gridDim.x;
   for (/*row*/; row < nrows; row += row_incre) {
     const input_t* input_row = input + row * ncols;
     std::uint8_t* output_row = output + row * output_columns;
@@ -83,9 +83,9 @@ __global__ inline void _fusednbitrowwise_to_float_cuda_kernel(
     output_t* const output) {
   const int num_elem_per_byte = 8 / bit_rate;
   const int output_columns = (ncols - 2 * sizeof(__half)) * num_elem_per_byte;
-  int row = (int)blockIdx.y * blockDim.y + threadIdx.y;
+  int64_t row = (int64_t)blockIdx.y * blockDim.y + threadIdx.y;
   const int col = (int)blockIdx.x * blockDim.x + threadIdx.x;
-  const auto row_incre = blockDim.y * gridDim.y;
+  const int64_t row_incre = (int64_t)blockDim.y * gridDim.y;
   for (/*row*/; row < nrows; row += row_incre) {
     if (row < nrows && col < output_columns) {
       const std::uint8_t* input_row = input + row * ncols;
@@ -119,6 +119,7 @@ Tensor _float_to_fusednbitrowwise_gpu_t(
   TENSOR_NDIM_EQUALS(input, 2);
   CUDA_DEVICE_GUARD(input);
 
+  TORCH_CHECK(bit_rate > 0, "bit_rate must be positive, got ", bit_rate);
   const int nrows = input.size(0);
   const int ncols = input.size(1);
   const int num_elem_per_byte = 8 / bit_rate;
@@ -225,6 +226,7 @@ Tensor _fusednbitrowwise_to_float_gpu_t(
   TENSOR_NDIM_EQUALS(input, 2);
   CUDA_DEVICE_GUARD(input);
 
+  TORCH_CHECK(bit_rate > 0, "bit_rate must be positive, got ", bit_rate);
   const int nrows = input.size(0);
   const int ncols = input.size(1);
   const int num_elem_per_byte = 8 / bit_rate;
