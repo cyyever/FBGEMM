@@ -317,14 +317,15 @@ TEST_P(Fused8BitRowwiseEmbeddingLookupTest, basicTest) {
         corner_case == UNMATCHED_NUM_INDICES_AND_LENGTHS_SUM) {
       EXPECT_EQ(success, false);
     }
+    const EmbeddingSpMDMOutputDtypeChoice out_type_ = out_type;
     auto get_actual = [&](size_t i) -> float {
-      if (out_type == FLOAT) return output[i];
-      if (out_type == BFLOAT16) return to_float(output_bf16[i]);
+      if (out_type_ == FLOAT) return output[i];
+      if (out_type_ == BFLOAT16) return to_float(output_bf16[i]);
       return to_float(output_fp16[i]);
     };
     auto get_expected = [&](size_t i) -> float {
-      if (out_type == FLOAT) return output_ref[i];
-      if (out_type == BFLOAT16) return to_float(output_ref_bf16[i]);
+      if (out_type_ == FLOAT) return output_ref[i];
+      if (out_type_ == BFLOAT16) return to_float(output_ref_bf16[i]);
       return to_float(output_ref_fp16[i]);
     };
     if (success) {

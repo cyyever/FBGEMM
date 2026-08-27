@@ -183,7 +183,7 @@ static int run_benchmark(
         /*output_stride=*/-1,
         /*input_stride=*/-1,
         /*scale_bias_last=*/true,
-        /*is_bf16_out=*/std::is_same_v<OutType, bfloat16>,
+        /*is_bf16_out=*/std::is_same_v<OutType, fbgemm::bfloat16>,
         /*no_bag=*/false,
         /*output_bit_rate=*/-1);
     auto kernel_64_autovec = GenerateEmbeddingSpMDMNBitWithStrides_autovec<
@@ -200,7 +200,7 @@ static int run_benchmark(
         /*output_stride=*/-1,
         /*input_stride=*/-1,
         /*scale_bias_last=*/true,
-        /*is_bf16_out=*/std::is_same_v<OutType, bfloat16>,
+        /*is_bf16_out=*/std::is_same_v<OutType, fbgemm::bfloat16>,
         /*no_bag=*/false,
         /*output_bit_rate=*/-1);
 #endif
@@ -429,7 +429,7 @@ static int run_benchmark(
 
       if constexpr (std::is_same_v<OutType, float>) {
         cout << "out type fp32, ";
-      } else if constexpr (std::is_same_v<OutType, bfloat16>) {
+      } else if constexpr (std::is_same_v<OutType, fbgemm::bfloat16>) {
         cout << "out type bf16, ";
       } else if constexpr (std::is_same_v<OutType, float16>) {
         cout << "out type fp16, ";
@@ -521,7 +521,7 @@ int main() {
           false, // prefetch
 );
 
-      run_benchmark<bfloat16>(
+      run_benchmark<fbgemm::bfloat16>(
           bit_rate,
           batch_size,
           num_rows,
@@ -556,7 +556,7 @@ int main() {
           true, // prefetch
 );
 
-      run_benchmark<bfloat16>(
+      run_benchmark<fbgemm::bfloat16>(
           bit_rate,
           batch_size,
           num_rows,
@@ -590,7 +590,7 @@ int main() {
           false, // prefetch
           );
 
-      run_benchmark<bfloat16>(
+      run_benchmark<fbgemm::bfloat16>(
           bit_rate,
           batch_size,
           num_rows,
@@ -625,7 +625,7 @@ int main() {
           true, // prefetch
           );
 
-      run_benchmark<bfloat16>(
+      run_benchmark<fbgemm::bfloat16>(
           bit_rate,
           batch_size,
           num_rows,

@@ -282,9 +282,9 @@ static int run_benchmark(
             if constexpr (std::is_same_v<OutType, float>) {
               tmp1 = output[i];
               tmp2 = output_ref[i];
-            } else if constexpr (std::is_same_v<OutType, bfloat16>) {
-              tmp1 = to_float(reinterpret_cast<const bfloat16&>(output[i]));
-              tmp2 = to_float(reinterpret_cast<const bfloat16&>(output_ref[i]));
+            } else if constexpr (std::is_same_v<OutType, fbgemm::bfloat16>) {
+              tmp1 = to_float(reinterpret_cast<const fbgemm::bfloat16&>(output[i]));
+              tmp2 = to_float(reinterpret_cast<const fbgemm::bfloat16&>(output_ref[i]));
             } else if constexpr (std::is_same_v<OutType, float16>) {
               tmp1 = to_float(reinterpret_cast<const float16&>(output[i]));
               tmp2 = to_float(reinterpret_cast<const float16&>(output_ref[i]));
@@ -320,7 +320,7 @@ static int run_benchmark(
       if (fbgemm_get_thread_num() == 0) {
         if constexpr (std::is_same_v<OutType, float>) {
           cout << "out type fp32";
-        } else if constexpr (std::is_same_v<OutType, bfloat16>) {
+        } else if constexpr (std::is_same_v<OutType, fbgemm::bfloat16>) {
           cout << "out type bf16";
         } else if constexpr (std::is_same_v<OutType, float16>) {
           cout << "out type fp16";
