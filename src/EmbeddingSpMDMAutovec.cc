@@ -6,15 +6,15 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-#ifdef __linux__
-
 #define FBGEMM_EXPORTS
 #include "./EmbeddingSpMDMAutovec.h" // @manual
 #include <bit>
+#include "./EmbeddingSpMDMPrefetch.h"
 #include "./EmbeddingStatsTracker.h"
 #include "./RefImplementations.h" // @manual
 #include "fbgemm/FbgemmBuild.h"
 #include "fbgemm/FloatConversion.h"
+#include "fbgemm/Utils.h"
 
 #if defined(__clang__) && HAVE_SVE
 #include <arm_neon.h>
@@ -1328,7 +1328,7 @@ static bool ALWAYS_INLINE EmbeddingSpMDMFP8_autovec(
 }
 
 template <typename InType>
-static int64_t stride_SpMDMWithStrides(
+static constexpr int64_t stride_SpMDMWithStrides(
     int64_t block_size,
     bool scale_bias_last) {
   if constexpr (std::is_same_v<InType, uint8_t>) {
@@ -1662,7 +1662,9 @@ typename EmbeddingSpMDMKernelSignature<InType, IndexType, OffsetType, OutType>::
       no_bag);
 }
 
-static int64_t stride_SpMDMNBitWith(int input_bit_rate, int64_t block_size) {
+static constexpr int64_t stride_SpMDMNBitWith(
+    int input_bit_rate,
+    int64_t block_size) {
   const int num_elem_per_byte = 8 / input_bit_rate;
   const size_t scale_bias_size = 2 * sizeof(float16);
   return div_up(block_size, num_elem_per_byte) + scale_bias_size;
@@ -2294,5 +2296,3 @@ INSTANTIATE_SPMDM_NBIT_ROWWISE_SPARSE(int64_t, int64_t)
 #undef INSTANTIATE_SPMDM_NBIT_ROWWISE_SPARSE
 
 } // namespace fbgemm
-
-#endif // #ifdef __linux__
