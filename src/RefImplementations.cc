@@ -1381,8 +1381,13 @@ bool EmbeddingSpMDM_ref(
       if (current + len > index_size) {
         return false;
       }
-      for (int i = 0; i < len; ++i) {
+      for (int i = 0; i < len; ++i, ++current) {
         int64_t idx = indices[current];
+        if (!scale_bias_last && idx == -1) {
+          // When scale_bias_last == false, assume this is for table batched
+          // embedding (TBE) that can get -1 for pruned rows.
+          continue;
+        }
         if (idx < 0 || idx >= data_size) {
           return false;
         }
@@ -1397,8 +1402,6 @@ bool EmbeddingSpMDM_ref(
           buf[j] =
               std::fma(w, convert_to_float_ref(*inptr), buf[j]);
         }
-
-        ++current;
       }
       if (normalize_by_lengths && len) {
         float scale = 1.f / len;
